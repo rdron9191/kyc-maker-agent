@@ -400,6 +400,11 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
               </h2>
               <span className="tag" style={{ color: 'var(--text-primary)' }}>{caseData.case_number}</span>
               <span className="tag">{caseData.entity_type}</span>
+              {caseData.business_size && (
+                <span className="tag" style={{ background: 'rgba(20, 184, 166, 0.15)', borderColor: 'rgba(20, 184, 166, 0.35)', color: '#2dd4bf' }}>
+                  Scale: {caseData.business_size.replace('_', ' ')}
+                </span>
+              )}
               <span className="tag" style={{ background: 'rgba(99, 102, 241, 0.15)', borderColor: 'var(--border-accent)', color: 'var(--accent-secondary)' }}>
                 Trigger: {caseData.trigger_type}
               </span>

@@ -80,6 +80,9 @@ class CaseDatabase:
                 email=preset.get("email"),
                 phone=preset.get("phone"),
                 country_of_operation=preset.get("country_of_operation", "US"),
+                business_size=preset.get("business_size", "MEDIUM"),
+                trigger_type=preset.get("trigger_type", "NEW_ONBOARDING"),
+                priority=preset.get("priority", "MEDIUM"),
                 status=CaseStatus.DRAFT,
                 documents=docs,
                 audit_trail=[

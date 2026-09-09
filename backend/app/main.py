@@ -107,6 +107,7 @@ def create_case(payload: CaseCreateRequest):
         email=payload.email,
         phone=payload.phone,
         country_of_operation=payload.country_of_operation,
+        business_size=payload.business_size,
         trigger_type=payload.trigger_type,
         trigger_source=payload.trigger_source,
         priority=payload.priority,

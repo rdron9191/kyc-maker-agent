@@ -26,16 +26,38 @@ export default function CaseList({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState('ALL');
+  const [filterSize, setFilterSize] = useState('ALL');
 
   const nowStr = new Date().toISOString().split('T')[0];
+
+  const getBusinessSizeBadge = (size) => {
+    if (!size) return null;
+    switch (size) {
+      case 'MICRO_SMB':
+        return { label: 'Micro SMB', bg: 'rgba(20, 184, 166, 0.15)', border: 'rgba(20, 184, 166, 0.35)', color: '#2dd4bf' };
+      case 'SMALL':
+        return { label: 'Small Business', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.35)', color: '#60a5fa' };
+      case 'MEDIUM':
+        return { label: 'Medium Corp', bg: 'rgba(99, 102, 241, 0.15)', border: 'rgba(99, 102, 241, 0.35)', color: '#818cf8' };
+      case 'LARGE':
+        return { label: 'Large Enterprise', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.35)', color: '#fbbf24' };
+      case 'XL_ENTERPRISE':
+        return { label: 'XL Conglomerate', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.35)', color: '#c084fc' };
+      default:
+        return { label: size, bg: 'rgba(100, 116, 139, 0.15)', border: 'rgba(100, 116, 139, 0.35)', color: '#94a3b8' };
+    }
+  };
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
       c.primary_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.case_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.country_of_operation.toLowerCase().includes(searchTerm.toLowerCase());
+      c.country_of_operation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.business_size && c.business_size.toLowerCase().includes(searchTerm.toLowerCase()));
 
     if (!matchesSearch) return false;
+
+    if (filterSize !== 'ALL' && c.business_size !== filterSize) return false;
 
     if (filterTier === 'ALL') return true;
     if (filterTier === 'PENDING') return c.status === 'PENDING_REVIEW';
@@ -115,41 +137,62 @@ export default function CaseList({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           {/* Filter Pills */}
-          <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg-card)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg-card)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
             <button
-              onClick={() => setFilterTier('ALL')}
+              onClick={() => { setFilterTier('ALL'); setFilterSize('ALL'); }}
               className="btn btn-sm btn-secondary"
-              style={{ background: filterTier === 'ALL' ? 'var(--bg-tertiary)' : 'transparent', border: 'none' }}
+              style={{ background: filterTier === 'ALL' && filterSize === 'ALL' ? 'var(--bg-tertiary)' : 'transparent', border: 'none' }}
             >
               All ({cases.length})
             </button>
             <button
-              onClick={() => setFilterTier('PENDING')}
+              onClick={() => { setFilterSize('MICRO_SMB'); setFilterTier('ALL'); }}
               className="btn btn-sm btn-secondary"
-              style={{ background: filterTier === 'PENDING' ? 'var(--bg-tertiary)' : 'transparent', border: 'none' }}
+              style={{ background: filterSize === 'MICRO_SMB' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#2dd4bf' }}
             >
-              Pending
+              SMBs
             </button>
             <button
-              onClick={() => setFilterTier('HIGH_RISK')}
+              onClick={() => { setFilterSize('SMALL'); setFilterTier('ALL'); }}
+              className="btn btn-sm btn-secondary"
+              style={{ background: filterSize === 'SMALL' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#60a5fa' }}
+            >
+              Small
+            </button>
+            <button
+              onClick={() => { setFilterSize('MEDIUM'); setFilterTier('ALL'); }}
+              className="btn btn-sm btn-secondary"
+              style={{ background: filterSize === 'MEDIUM' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#818cf8' }}
+            >
+              Medium
+            </button>
+            <button
+              onClick={() => { setFilterSize('LARGE'); setFilterTier('ALL'); }}
+              className="btn btn-sm btn-secondary"
+              style={{ background: filterSize === 'LARGE' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#fbbf24' }}
+            >
+              Large
+            </button>
+            <button
+              onClick={() => { setFilterSize('XL_ENTERPRISE'); setFilterTier('ALL'); }}
+              className="btn btn-sm btn-secondary"
+              style={{ background: filterSize === 'XL_ENTERPRISE' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#c084fc' }}
+            >
+              XL Enterprise
+            </button>
+            <button
+              onClick={() => { setFilterTier('HIGH_RISK'); setFilterSize('ALL'); }}
               className="btn btn-sm btn-secondary"
               style={{ background: filterTier === 'HIGH_RISK' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: 'var(--color-danger)' }}
             >
               High Risk
             </button>
             <button
-              onClick={() => setFilterTier('APPROVED')}
+              onClick={() => { setFilterTier('APPROVED'); setFilterSize('ALL'); }}
               className="btn btn-sm btn-secondary"
               style={{ background: filterTier === 'APPROVED' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: 'var(--color-success)' }}
             >
               Approved
-            </button>
-            <button
-              onClick={() => setFilterTier('REVIEW_DUE')}
-              className="btn btn-sm btn-secondary"
-              style={{ background: filterTier === 'REVIEW_DUE' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: 'var(--color-info)' }}
-            >
-              Review Due
             </button>
           </div>
 
@@ -188,6 +231,7 @@ export default function CaseList({
             const sanctionsHits = (c.screening_matches || []).filter((m) => m.type === 'SANCTIONS');
             const pepHits = (c.screening_matches || []).filter((m) => m.type === 'PEP');
             const isPeriodic = c.current_review_type === 'PERIODIC_REVIEW';
+            const sizeBadge = getBusinessSizeBadge(c.business_size);
 
             return (
               <div
@@ -226,6 +270,11 @@ export default function CaseList({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '1.05rem', fontWeight: '700' }}>{c.primary_name}</span>
                       <span className="tag">{c.case_number}</span>
+                      {sizeBadge && (
+                        <span className="tag" style={{ background: sizeBadge.bg, borderColor: sizeBadge.border, color: sizeBadge.color }}>
+                          {sizeBadge.label}
+                        </span>
+                      )}
                       {isPeriodic && (
                         <span className="tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', borderColor: 'rgba(14, 165, 233, 0.3)' }}>
                           Periodic Refresh

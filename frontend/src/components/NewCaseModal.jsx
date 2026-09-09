@@ -3,6 +3,7 @@ import { X, UserPlus, Upload, Shield, Building, User, Sparkles, Bell } from 'luc
 
 export default function NewCaseModal({ isOpen, onClose, onCaseCreated }) {
   const [entityType, setEntityType] = useState('INDIVIDUAL');
+  const [businessSize, setBusinessSize] = useState('MEDIUM');
   const [primaryName, setPrimaryName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -38,6 +39,7 @@ export default function NewCaseModal({ isOpen, onClose, onCaseCreated }) {
           email: email || undefined,
           phone: phone || undefined,
           country_of_operation: country,
+          business_size: entityType === 'CORPORATE' ? businessSize : 'MICRO_SMB',
           trigger_type: triggerType,
           trigger_source: triggerSource,
           priority: priority,
@@ -122,6 +124,24 @@ export default function NewCaseModal({ isOpen, onClose, onCaseCreated }) {
                 </button>
               </div>
             </div>
+
+            {/* Business Scale Selector if Corporate */}
+            {entityType === 'CORPORATE' && (
+              <div className="form-group" style={{ margin: 0, background: 'rgba(99, 102, 241, 0.08)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                <label className="form-label" style={{ color: 'var(--accent-secondary)', fontWeight: '700' }}>Corporate Business Scale / Classification</label>
+                <select
+                  className="form-control"
+                  value={businessSize}
+                  onChange={(e) => setBusinessSize(e.target.value)}
+                >
+                  <option value="MICRO_SMB">Micro SMB / Startup (Annual Turnover &lt; $1M)</option>
+                  <option value="SMALL">Small Enterprise ($1M - $10M Annual Turnover)</option>
+                  <option value="MEDIUM">Medium Enterprise ($10M - $50M Annual Turnover)</option>
+                  <option value="LARGE">Large Enterprise ($50M - $250M Annual Turnover)</option>
+                  <option value="XL_ENTERPRISE">XL Multinational Conglomerate (&gt; $250M Turnover)</option>
+                </select>
+              </div>
+            )}
 
             {/* Step 1: Trigger Details */}
             <div style={{ background: 'var(--bg-tertiary)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>

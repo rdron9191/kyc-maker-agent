@@ -34,6 +34,7 @@ export const exportToExcel = (caseData) => {
     ['Case Number', caseData.case_number || 'N/A'],
     ['Primary Entity Name', caseData.primary_name || 'N/A'],
     ['Entity Type', caseData.entity_type || 'N/A'],
+    ['Business Scale', caseData.business_size || 'N/A'],
     ['Country of Operation', caseData.country_of_operation || 'N/A'],
     ['Email', caseData.email || 'N/A'],
     ['Phone', caseData.phone || 'N/A'],
@@ -205,6 +206,7 @@ export const exportToCSV = (caseData) => {
   addRow('Case Number', caseData.case_number);
   addRow('Primary Name', caseData.primary_name);
   addRow('Entity Type', caseData.entity_type);
+  addRow('Business Scale', caseData.business_size || 'N/A');
   addRow('Country of Operation', caseData.country_of_operation);
   addRow('Case Status', caseData.status);
   addRow('Current Stage', caseData.current_stage);
@@ -362,7 +364,7 @@ export const exportToPDF = (caseData) => {
   doc.text(`Entity Type: `, col1X, yPos + 42);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...darkTextColor);
-  doc.text(`${caseData.entity_type || 'N/A'}`, col1X + 55, yPos + 42);
+  doc.text(`${caseData.entity_type || 'N/A'} ${caseData.business_size ? '(' + caseData.business_size.replace('_', ' ') + ')' : ''}`, col1X + 55, yPos + 42);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...mutedTextColor);

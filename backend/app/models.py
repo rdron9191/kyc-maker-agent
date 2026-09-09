@@ -27,6 +27,14 @@ class EntityType(str, Enum):
     CORPORATE = "CORPORATE"
 
 
+class BusinessSize(str, Enum):
+    MICRO_SMB = "MICRO_SMB"
+    SMALL = "SMALL"
+    MEDIUM = "MEDIUM"
+    LARGE = "LARGE"
+    XL_ENTERPRISE = "XL_ENTERPRISE"
+
+
 class KYCTriggerType(str, Enum):
     NEW_ONBOARDING = "NEW_ONBOARDING"
     PERIODIC_RE_KYC = "PERIODIC_RE_KYC"
@@ -220,6 +228,7 @@ class CDDProfile(BaseModel):
     expected_monthly_turnover: str = "$500,000 - $2,000,000"
     geographic_presence: List[str] = Field(default_factory=lambda: ["US", "GB", "DE"])
     industry_sector: str = "Technology & Professional Services"
+    business_size: Optional[str] = "MEDIUM"
     delivery_channel: str = "Online / Direct Institutional Channel"
     ubo_analysis_notes: Optional[str] = "Identified and verified all UBOs holding >= 25% voting equity."
 
@@ -333,6 +342,7 @@ class CaseCreateRequest(BaseModel):
     trigger_type: KYCTriggerType = KYCTriggerType.NEW_ONBOARDING
     trigger_source: KYCTriggerSource = KYCTriggerSource.CLIENT_FRONT_OFFICE
     priority: PriorityLevel = PriorityLevel.MEDIUM
+    business_size: Optional[BusinessSize] = BusinessSize.MEDIUM
     notes: Optional[str] = None
 
 
@@ -370,6 +380,7 @@ class KYCCase(BaseModel):
     priority: PriorityLevel = PriorityLevel.MEDIUM
     assigned_maker: str = "KYC Maker AI Agent (Core)"
     assigned_checker: Optional[str] = "Senior Compliance Checker"
+    business_size: Optional[BusinessSize] = BusinessSize.MEDIUM
     deadline_date: Optional[str] = None
     
     status: CaseStatus = CaseStatus.DRAFT
