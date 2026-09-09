@@ -1,4 +1,4 @@
-"""Citi KYC Maker Workflow Orchestrator.
+"""KYC Maker Workflow Orchestrator.
 
 Orchestrates the 12-stage compliance lifecycle:
 1. Trigger (Onboarding, Periodic re-KYC, Event, Regulatory)
@@ -35,7 +35,7 @@ from backend.agent.memo_generator import MemoGenerator
 
 
 class KYCMakerAgent:
-    """End-to-End Citi KYC Maker Compliance AI Agent."""
+    """End-to-End KYC Maker Compliance AI Agent."""
 
     def __init__(self):
         self.parser = DocumentParser()
@@ -45,7 +45,7 @@ class KYCMakerAgent:
         self.memo_generator = MemoGenerator()
 
     def process_case(self, case: KYCCase, review_type: Optional[str] = None) -> KYCCase:
-        """Execute the full Citi KYC Maker workflow."""
+        """Execute the full KYC Maker workflow."""
         is_periodic = (review_type == "PERIODIC_RE_KYC") or (case.trigger_type.value == "PERIODIC_RE_KYC")
         prior_score = case.risk_assessment.overall_score if case.risk_assessment else None
 
@@ -147,7 +147,7 @@ class KYCMakerAgent:
             if match.disposition == AlertDisposition.UNRESOLVED:
                 if match.type == "SANCTIONS" and match.match_score >= 85.0:
                     match.disposition = AlertDisposition.TRUE_POSITIVE
-                    match.disposition_rationale = f"Direct match against {match.list_name} ({match.program_or_category}). Mandatory escalation to MLRO / Sanctions Compliance required under Citi Sanctions Policy."
+                    match.disposition_rationale = f"Direct match against {match.list_name} ({match.program_or_category}). Mandatory escalation to MLRO / Sanctions Compliance required under Sanctions Policy."
                     match.investigated_by = "KYC Maker AI Agent"
                     match.investigated_at = datetime.utcnow()
                     has_critical_alerts = True

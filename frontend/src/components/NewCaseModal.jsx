@@ -81,7 +81,7 @@ export default function NewCaseModal({ isOpen, onClose, onCaseCreated }) {
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <UserPlus size={20} color="var(--accent-secondary)" />
-            <h3 style={{ fontSize: '1.15rem', fontWeight: '800' }}>New Citi KYC Case Intake (Step 1 & 2)</h3>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '800' }}>New KYC Case Intake (Step 1 & 2)</h3>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={20} />

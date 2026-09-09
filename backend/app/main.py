@@ -1,4 +1,4 @@
-"""FastAPI REST API for Citi KYC Maker AI Agent."""
+"""FastAPI REST API for KYC Maker AI Agent."""
 
 import io
 import uuid
@@ -30,8 +30,8 @@ from backend.app.database import db
 from backend.agent.orchestrator import KYCMakerAgent
 
 app = FastAPI(
-    title="Citi KYC Maker AI Agent API",
-    description="Detailed process flow implementation for Citi KYC Maker – from case trigger to checker submission and closure.",
+    title="KYC Maker AI Agent API",
+    description="Detailed process flow implementation for KYC Maker – from case trigger to checker submission and closure.",
     version="2.0.0",
 )
 
@@ -49,7 +49,7 @@ agent = KYCMakerAgent()
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": "citi-kyc-maker-agent", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "service": "kyc-maker-agent", "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.get("/api/stats")
@@ -99,7 +99,7 @@ def list_cases():
 
 @app.post("/api/cases", response_model=KYCCase)
 def create_case(payload: CaseCreateRequest):
-    case_number = f"CITI-KYC-{datetime.utcnow().year}-{str(uuid.uuid4().int)[:4]}"
+    case_number = f"KYC-{datetime.utcnow().year}-{str(uuid.uuid4().int)[:4]}"
     new_case = KYCCase(
         case_number=case_number,
         entity_type=payload.entity_type,
@@ -306,7 +306,7 @@ def submit_checker_decision(case_id: str, payload: CaseDecisionRequest):
                 stage=WorkflowStage.STAGE_10_CASE_CLOSURE,
                 actor="CHECKER_OFFICER",
                 action="CASE_APPROVED_AND_CLOSED",
-                details=f"Checker ({payload.checker_name}) approved {payload.decision.value}. KYC profile updated in Citi system. Next re-KYC review scheduled for {next_date} ({cycle_months} mo).",
+                details=f"Checker ({payload.checker_name}) approved {payload.decision.value}. KYC profile updated in Core system. Next re-KYC review scheduled for {next_date} ({cycle_months} mo).",
             )
         )
 
@@ -395,4 +395,4 @@ def submit_mlro_decision(case_id: str, decision: str = Form(...), notes: str = F
 @app.post("/api/cases/reset")
 def reset_database():
     db.initialize_presets()
-    return {"message": "Database reset to Citi demo cases", "count": len(db.list_cases())}
+    return {"message": "Database reset to demo cases", "count": len(db.list_cases())}

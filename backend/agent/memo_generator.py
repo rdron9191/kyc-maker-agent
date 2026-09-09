@@ -65,7 +65,7 @@ class MemoGenerator:
         # Build Case Summary
         review_label = "Periodic Review Refresh (re-KYC)" if is_periodic else "Initial Customer Due Diligence (CDD)"
         exec_summary = (
-            f"Citi KYC Maker {review_label} for {primary_name} ({entity_type.value if hasattr(entity_type, 'value') else entity_type}) - Case {case_number}. "
+            f"KYC Maker {review_label} for {primary_name} ({entity_type.value if hasattr(entity_type, 'value') else entity_type}) - Case {case_number}. "
             f"Evaluated {len(documents)} submitted document(s) with primary operations in {country_of_operation}. "
             f"Overall Customer Risk Rating: {risk.risk_tier.value if hasattr(risk.risk_tier, 'value') else risk.risk_tier} ({risk.overall_score}/100). "
             f"Maker preliminary recommendation is {rec.value if hasattr(rec, 'value') else rec}. Review cadence: {risk.recommended_review_cycle_months} mo."

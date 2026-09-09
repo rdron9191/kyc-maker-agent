@@ -9,7 +9,7 @@ export default function AlertInvestigationWorkbench({ caseId, screeningMatches =
 
   const handleSubmit = async (alertId) => {
     if (!rationale.trim()) {
-      alert('Please provide a documented disposition rationale as required by Citi KYC policy.');
+      alert('Please provide a documented disposition rationale as required by KYC policy.');
       return;
     }
     setIsSubmitting(true);

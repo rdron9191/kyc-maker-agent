@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserCheck, ShieldCheck, ShieldAlert, AlertCircle, RotateCcw, Shield, CheckCircle2, Send, AlertOctagon } from 'lucide-react';
 
-export default function CitiCheckerHub({ caseData, onDecisionSubmit, onMLROSubmit, isSubmitting }) {
+export default function CheckerHub({ caseData, onDecisionSubmit, onMLROSubmit, isSubmitting }) {
   const [checkerName, setCheckerName] = useState('Senior Compliance Officer');
   const [comments, setComments] = useState('');
   const [rfiNotes, setRfiNotes] = useState('');
@@ -188,7 +188,7 @@ export default function CitiCheckerHub({ caseData, onDecisionSubmit, onMLROSubmi
           />
         </div>
 
-        {/* 4 Citi Decision Branching Actions */}
+        {/* 4 Decision Branching Actions */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button
             onClick={() => handleCheckerDecision('APPROVED_SDD')}

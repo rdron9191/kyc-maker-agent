@@ -19,11 +19,11 @@ import {
   Shield
 } from 'lucide-react';
 
-import CitiWorkflowStepper from './CitiWorkflowStepper';
+import WorkflowStepper from './WorkflowStepper';
 import CDDAnalysisView from './CDDAnalysisView';
 import AlertInvestigationWorkbench from './AlertInvestigationWorkbench';
 import MakerSelfCheckView from './MakerSelfCheckView';
-import CitiCheckerHub from './CitiCheckerHub';
+import CheckerHub from './CheckerHub';
 import RiskGauge from './RiskGauge';
 import DocumentViewer from './DocumentViewer';
 import VerificationMatrix from './VerificationMatrix';
@@ -132,7 +132,7 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(caseData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `CITI_KYC_DOSSIER_${caseData.case_number}.json`);
+    downloadAnchor.setAttribute('download', `KYC_DOSSIER_${caseData.case_number}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -187,8 +187,8 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
         </div>
       </div>
 
-      {/* Citi 12-Step Process Flow Stepper */}
-      <CitiWorkflowStepper
+      {/* 12-Step Process Flow Stepper */}
+      <WorkflowStepper
         currentStage={caseData.current_stage}
         onSelectStage={(stageId) => {
           if (stageId === 'STAGE_3_COLLECTION' || stageId === 'STAGE_4_CDD') setActiveTab('CDD');
@@ -204,8 +204,8 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
       {/* Case Header Card */}
       <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, #002D72, #00A3E0)', width: '54px', height: '54px', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '1.25rem', boxShadow: '0 0 15px rgba(0, 163, 224, 0.4)' }}>
-            {caseData.primary_name ? caseData.primary_name.charAt(0).toUpperCase() : 'C'}
+          <div style={{ background: 'linear-gradient(135deg, #6366f1, #3b82f6)', width: '54px', height: '54px', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '1.25rem', boxShadow: '0 0 15px rgba(99, 102, 241, 0.4)' }}>
+            {caseData.primary_name ? caseData.primary_name.charAt(0).toUpperCase() : 'K'}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
@@ -290,7 +290,7 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <MakerMemo memo={caseData.maker_memo} />
-            <CitiCheckerHub
+            <CheckerHub
               caseData={caseData}
               onDecisionSubmit={handleDecisionSubmit}
               onMLROSubmit={handleMLROSubmit}
@@ -343,7 +343,7 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
       )}
 
       {activeTab === 'CHECKER' && (
-        <CitiCheckerHub
+        <CheckerHub
           caseData={caseData}
           onDecisionSubmit={handleDecisionSubmit}
           onMLROSubmit={handleMLROSubmit}

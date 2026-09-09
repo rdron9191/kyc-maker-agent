@@ -1,6 +1,6 @@
-"""Citi KYC Maker Workflow Data Models.
+"""KYC Maker Workflow Data Models.
 
-Covers the entire 12-step Citi KYC Process Flow:
+Covers the entire 12-step KYC Process Flow:
 1. Trigger for KYC
 2. Case Assignment to Maker
 3. Information & Document Collection (SoW/SoF, UBOs)
@@ -262,7 +262,7 @@ class MakerSelfCheck(BaseModel):
 class MakerMemo(BaseModel):
     """Step 7A: Completed KYC Record Memo."""
     case_summary: str
-    cdd_narrative: str = "Customer Due Diligence (CDD) standards satisfied under Citi KYC Policy."
+    cdd_narrative: str = "Customer Due Diligence (CDD) standards satisfied under Global KYC Policy."
     identity_audit: str
     screening_audit: str
     risk_justification: str
@@ -273,7 +273,7 @@ class MakerMemo(BaseModel):
     periodic_delta_summary: Optional[str] = None
     mitigating_factors: List[str] = Field(default_factory=list)
     rfi_items_required: List[str] = Field(default_factory=list)
-    maker_agent_version: str = "Citi-KYC-Maker-AI-v2.0"
+    maker_agent_version: str = "KYC-Maker-AI-v2.0"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -368,7 +368,7 @@ class KYCCase(BaseModel):
     trigger_source: KYCTriggerSource = KYCTriggerSource.CLIENT_FRONT_OFFICE
     trigger_date: datetime = Field(default_factory=datetime.utcnow)
     priority: PriorityLevel = PriorityLevel.MEDIUM
-    assigned_maker: str = "KYC Maker AI Agent (Citi Core)"
+    assigned_maker: str = "KYC Maker AI Agent (Core)"
     assigned_checker: Optional[str] = "Senior Compliance Checker"
     deadline_date: Optional[str] = None
     

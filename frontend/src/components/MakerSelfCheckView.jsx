@@ -10,7 +10,7 @@ export default function MakerSelfCheckView({ selfCheck, onRunSelfCheck, onSubmit
     { label: 'Source of Wealth (SoW) & Funds (SoF)', status: check.sow_sof_documented, desc: 'Plausible wealth origin and expected transactional activity fully articulated.' },
     { label: 'Screening Alerts Dispositioned', status: check.screenings_dispositioned, desc: 'All sanctions, PEP, and adverse media matches investigated with written rationales.' },
     { label: 'Risk Rating & Justification Rationale', status: check.risk_rationale_concise, desc: '5-factor risk matrix calculated and regulatory justification synthesized.' },
-    { label: 'Citi KYC Policy & CDD Standards Compliance', status: check.policies_and_cdd_standards_met, desc: 'Dossier adheres strictly to global financial crime prevention rules.' },
+    { label: 'Global KYC Policy & CDD Standards Compliance', status: check.policies_and_cdd_standards_met, desc: 'Dossier adheres strictly to global financial crime prevention rules.' },
   ];
 
   const allPassed = items.every(i => i.status);

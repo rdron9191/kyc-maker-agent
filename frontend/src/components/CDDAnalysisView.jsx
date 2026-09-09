@@ -16,7 +16,7 @@ export default function CDDAnalysisView({ cddProfile, entityType, primaryName, d
               Step 4: Customer Due Diligence (CDD) Analysis
             </h3>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Applying Citi KYC Policy, CDD Standards & Industry Guidance
+              Applying Global KYC Policy, CDD Standards & Industry Guidance
             </span>
           </div>
         </div>

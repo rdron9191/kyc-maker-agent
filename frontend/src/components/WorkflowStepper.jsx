@@ -14,7 +14,7 @@ import {
   Activity
 } from 'lucide-react';
 
-export const CITI_WORKFLOW_STEPS = [
+export const WORKFLOW_STEPS = [
   { id: 'STAGE_1_TRIGGER', step: '1', title: 'Trigger', icon: Bell, performer: 'Client / System' },
   { id: 'STAGE_2_ASSIGNMENT', step: '2', title: 'Assignment', icon: UserCheck, performer: 'Maker Queue' },
   { id: 'STAGE_3_COLLECTION', step: '3', title: 'Collection', icon: FolderOpen, performer: 'Maker (You)' },
@@ -28,8 +28,8 @@ export const CITI_WORKFLOW_STEPS = [
   { id: 'STAGE_12_ONGOING_MONITORING', step: '12', title: 'Ongoing Monitoring', icon: Activity, performer: 'Automated' },
 ];
 
-export default function CitiWorkflowStepper({ currentStage, onSelectStage }) {
-  const currentIndex = CITI_WORKFLOW_STEPS.findIndex(s => s.id === currentStage);
+export default function WorkflowStepper({ currentStage, onSelectStage }) {
+  const currentIndex = WORKFLOW_STEPS.findIndex(s => s.id === currentStage);
   const activeIdx = currentIndex !== -1 ? currentIndex : 5;
 
   return (
@@ -37,7 +37,7 @@ export default function CitiWorkflowStepper({ currentStage, onSelectStage }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase', color: 'var(--accent-secondary)', letterSpacing: '0.05em' }}>
-            Citi KYC Process Flow
+            KYC Process Flow
           </span>
           <span className="tag" style={{ fontSize: '0.7rem' }}>
             From Case Assignment to Checker Submission & Ongoing Monitoring
@@ -54,7 +54,7 @@ export default function CitiWorkflowStepper({ currentStage, onSelectStage }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '980px' }}>
-        {CITI_WORKFLOW_STEPS.map((step, idx) => {
+        {WORKFLOW_STEPS.map((step, idx) => {
           const isPassed = idx < activeIdx;
           const isCurrent = idx === activeIdx;
           const isMakerStep = ['STAGE_2_ASSIGNMENT', 'STAGE_3_COLLECTION', 'STAGE_4_CDD', 'STAGE_5_SCREENING_RISK', 'STAGE_6_ALERT_INVESTIGATION', 'STAGE_7_MAKER_COMPLETION'].includes(step.id);
@@ -111,7 +111,7 @@ export default function CitiWorkflowStepper({ currentStage, onSelectStage }) {
                 </div>
               </div>
 
-              {idx < CITI_WORKFLOW_STEPS.length - 1 && (
+              {idx < WORKFLOW_STEPS.length - 1 && (
                 <div style={{ width: '12px', height: '2px', background: isPassed ? 'var(--color-success)' : 'var(--border-subtle)', flexShrink: 0 }} />
               )}
             </React.Fragment>
