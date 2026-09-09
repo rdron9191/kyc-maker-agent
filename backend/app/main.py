@@ -17,6 +17,7 @@ from backend.app.models import (
     DocumentModel,
     DocumentType,
     CaseStatus,
+    ComplianceQueue,
     WorkflowStage,
     CheckerReview,
     MLROEscalation,
@@ -56,39 +57,36 @@ def health_check():
 def get_stats():
     cases = db.list_cases()
     total = len(cases)
-    pending_checker = sum(1 for c in cases if c.status == CaseStatus.PENDING_CHECKER)
-    maker_in_progress = sum(1 for c in cases if c.status == CaseStatus.MAKER_IN_PROGRESS)
-    returned_to_maker = sum(1 for c in cases if c.status == CaseStatus.RETURNED_TO_MAKER)
-    escalated_mlro = sum(1 for c in cases if c.status == CaseStatus.ESCALATED_MLRO)
-    approved = sum(1 for c in cases if c.status in [CaseStatus.APPROVED_SDD, CaseStatus.APPROVED_EDD, CaseStatus.CLOSED])
-    rfi = sum(1 for c in cases if c.status == CaseStatus.ISSUES_IDENTIFIED)
-    rejected = sum(1 for c in cases if c.status == CaseStatus.REJECTED)
-    
-    high_risk_count = 0
-    sanction_hits_count = 0
-    reviews_due_count = 0
     now_str = datetime.utcnow().strftime("%Y-%m-%d")
 
-    for c in cases:
-        if c.risk_assessment and c.risk_assessment.risk_tier.value in ["HIGH", "CRITICAL"]:
-            high_risk_count += 1
-        if any(m.type == "SANCTIONS" for m in c.screening_matches):
-            sanction_hits_count += 1
-        if c.next_review_date and c.next_review_date <= now_str:
-            reviews_due_count += 1
+    maker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.MAKER_QUEUE or c.status in [CaseStatus.DRAFT, CaseStatus.MAKER_IN_PROGRESS, CaseStatus.RETURNED_TO_MAKER, CaseStatus.ISSUES_IDENTIFIED])
+    l1_checker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.L1_CHECKER_QUEUE or c.status in [CaseStatus.PENDING_CHECKER, CaseStatus.PENDING_L1_CHECKER])
+    l2_checker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.L2_CHECKER_QUEUE or c.status == CaseStatus.PENDING_L2_CHECKER)
+    mlro_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.MLRO_QUEUE or c.status == CaseStatus.ESCALATED_MLRO)
+    monitoring_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.PERIODIC_MONITORING_QUEUE or (c.next_review_date and c.next_review_date <= now_str))
+    completed_archive = sum(1 for c in cases if c.current_queue == ComplianceQueue.COMPLETED_ARCHIVE or c.status in [CaseStatus.APPROVED_SDD, CaseStatus.APPROVED_EDD, CaseStatus.CLOSED, CaseStatus.REJECTED])
+
+    high_risk_count = sum(1 for c in cases if c.risk_assessment and c.risk_assessment.risk_tier.value in ["HIGH", "CRITICAL"])
+    sanction_hits_count = sum(1 for c in cases if any(m.type == "SANCTIONS" for m in c.screening_matches))
 
     return {
         "total_cases": total,
-        "pending_checker": pending_checker,
-        "maker_in_progress": maker_in_progress,
-        "returned_to_maker": returned_to_maker,
-        "escalated_mlro": escalated_mlro,
-        "approved": approved,
-        "issues_identified": rfi,
-        "rejected": rejected,
+        "maker_queue_count": maker_queue,
+        "l1_checker_queue_count": l1_checker_queue,
+        "l2_checker_queue_count": l2_checker_queue,
+        "mlro_queue_count": mlro_queue,
+        "monitoring_queue_count": monitoring_queue,
+        "completed_archive_count": completed_archive,
         "high_or_critical_risk": high_risk_count,
         "sanctions_hits": sanction_hits_count,
-        "periodic_reviews_due": reviews_due_count,
+        "periodic_reviews_due": monitoring_queue,
+        # Legacy fields for backward compatibility
+        "pending_checker": l1_checker_queue + l2_checker_queue,
+        "maker_in_progress": maker_queue,
+        "returned_to_maker": sum(1 for c in cases if c.status == CaseStatus.RETURNED_TO_MAKER),
+        "escalated_mlro": mlro_queue,
+        "approved": completed_archive,
+        "rejected": sum(1 for c in cases if c.status == CaseStatus.REJECTED),
     }
 
 
@@ -255,9 +253,32 @@ def trigger_periodic_review(case_id: str):
     return analyzed_case
 
 
+@app.post("/api/cases/{case_id}/submit-to-checker", response_model=KYCCase)
+def submit_to_checker(case_id: str):
+    """Step 7A -> 8: Maker submits completed record to L1 Checker Queue."""
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+    case.status = CaseStatus.PENDING_L1_CHECKER
+    case.current_queue = ComplianceQueue.L1_CHECKER_QUEUE
+    case.updated_at = datetime.utcnow()
+    case.audit_trail.append(
+        AuditEvent(
+            stage=WorkflowStage.STAGE_7_MAKER_COMPLETION,
+            actor="KYC_MAKER_AGENT",
+            action="SUBMITTED_TO_L1_CHECKER",
+            details="Maker verified quality self-check checklist and routed dossier to L1 Checker Queue for 4-eyes review.",
+        )
+    )
+    db.save_case(case)
+    return case
+
+
 @app.post("/api/cases/{case_id}/decision", response_model=KYCCase)
 def submit_checker_decision(case_id: str, payload: CaseDecisionRequest):
-    """Step 8 & 9: Checker Review & Decision."""
+    """Step 8 & 9: Independent Checker Review (L1 / L2)."""
     case = db.get_case(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -269,7 +290,9 @@ def submit_checker_decision(case_id: str, payload: CaseDecisionRequest):
         (datetime.utcnow() + timedelta(days=cycle_months * 30)).strftime("%Y-%m-%d")
     )
 
-    case.checker_review = CheckerReview(
+    checker_lvl = payload.checker_level or "L1"
+    review = CheckerReview(
+        checker_level=checker_lvl,
         decision=payload.decision,
         checker_name=payload.checker_name,
         comments=payload.comments,
@@ -279,16 +302,23 @@ def submit_checker_decision(case_id: str, payload: CaseDecisionRequest):
         next_review_date=next_date,
         reviewed_at=datetime.utcnow(),
     )
+    
+    case.checker_review = review
+    if checker_lvl == "L2":
+        case.l2_review = review
+    else:
+        case.l1_review = review
+
     case.status = payload.decision
     case.review_cycle_months = cycle_months
     case.last_reviewed_at = datetime.utcnow()
     case.next_review_date = next_date
     case.updated_at = datetime.utcnow()
 
-    # Step Branching based on Decision:
+    # Step Branching & Queue Transitions:
     if payload.decision in [CaseStatus.APPROVED_SDD, CaseStatus.APPROVED_EDD]:
-        # Step 10: System Update & Case Closure
         case.current_stage = WorkflowStage.STAGE_10_CASE_CLOSURE
+        case.current_queue = ComplianceQueue.COMPLETED_ARCHIVE
         if case.risk_assessment and case.maker_memo:
             record = PeriodicReviewRecord(
                 review_type=case.trigger_type.value,
@@ -305,27 +335,52 @@ def submit_checker_decision(case_id: str, payload: CaseDecisionRequest):
         case.audit_trail.append(
             AuditEvent(
                 stage=WorkflowStage.STAGE_10_CASE_CLOSURE,
-                actor="CHECKER_OFFICER",
+                actor=f"{checker_lvl}_CHECKER",
                 action="CASE_APPROVED_AND_CLOSED",
-                details=f"Checker ({payload.checker_name}) approved {payload.decision.value}. KYC profile updated in Core system. Next re-KYC review scheduled for {next_date} ({cycle_months} mo).",
+                details=f"{checker_lvl} Checker ({payload.checker_name}) approved {payload.decision.value}. Case sealed in Core Archive. Next re-KYC review scheduled for {next_date} ({cycle_months} mo).",
+            )
+        )
+
+    elif payload.decision == CaseStatus.PENDING_L2_CHECKER:
+        # L1 Escalates to L2 Senior Checker for 6-Eyes
+        case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+        case.current_queue = ComplianceQueue.L2_CHECKER_QUEUE
+        case.audit_trail.append(
+            AuditEvent(
+                stage=WorkflowStage.STAGE_8_CHECKER_REVIEW,
+                actor="L1_CHECKER",
+                action="ESCALATED_TO_L2_CHECKER",
+                details=f"L1 Checker ({payload.checker_name}) completed 4-eyes review and escalated case to L2 Senior Checker Queue for 6-eyes approval. Rationale: {payload.escalation_reason or payload.comments}",
             )
         )
 
     elif payload.decision == CaseStatus.RETURNED_TO_MAKER:
-        # Step C: Return to Maker for Amendment
         case.current_stage = WorkflowStage.STAGE_7_MAKER_COMPLETION
+        case.current_queue = ComplianceQueue.MAKER_QUEUE
         case.audit_trail.append(
             AuditEvent(
                 stage=WorkflowStage.STAGE_7_MAKER_COMPLETION,
-                actor="CHECKER_OFFICER",
-                action="RETURNED_FOR_AMENDMENT",
-                details=f"Checker ({payload.checker_name}) returned case to Maker for amendment. Items to address: {payload.rfi_notes or payload.comments}",
+                actor=f"{checker_lvl}_CHECKER",
+                action="RETURNED_TO_MAKER_FOR_AMENDMENT",
+                details=f"{checker_lvl} Checker ({payload.checker_name}) returned case to Maker Queue for amendment. Required items: {payload.rfi_notes or payload.comments}",
+            )
+        )
+
+    elif payload.decision == CaseStatus.RETURNED_TO_L1:
+        case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+        case.current_queue = ComplianceQueue.L1_CHECKER_QUEUE
+        case.audit_trail.append(
+            AuditEvent(
+                stage=WorkflowStage.STAGE_8_CHECKER_REVIEW,
+                actor="L2_CHECKER",
+                action="RETURNED_TO_L1_CHECKER",
+                details=f"L2 Senior Checker ({payload.checker_name}) remanded case back to L1 Checker Queue. Notes: {payload.comments}",
             )
         )
 
     elif payload.decision == CaseStatus.ESCALATED_MLRO:
-        # Step 11: Escalation / Additional Review (MLRO / Compliance)
         case.current_stage = WorkflowStage.STAGE_11_ESCALATION
+        case.current_queue = ComplianceQueue.MLRO_QUEUE
         case.mlro_escalation = MLROEscalation(
             escalated_by=payload.checker_name,
             escalation_reason=payload.escalation_reason or payload.comments,
@@ -333,21 +388,22 @@ def submit_checker_decision(case_id: str, payload: CaseDecisionRequest):
         case.audit_trail.append(
             AuditEvent(
                 stage=WorkflowStage.STAGE_11_ESCALATION,
-                actor="CHECKER_OFFICER",
+                actor=f"{checker_lvl}_CHECKER",
                 action="ESCALATED_TO_MLRO",
-                details=f"Escalated to MLRO / Compliance Lead for senior review. Reason: {payload.escalation_reason or payload.comments}",
+                details=f"Escalated to MLRO / Compliance Lead Queue. Reason: {payload.escalation_reason or payload.comments}",
             )
         )
 
     else:
         # Rejected / Exit
         case.current_stage = WorkflowStage.STAGE_10_CASE_CLOSURE
+        case.current_queue = ComplianceQueue.COMPLETED_ARCHIVE
         case.audit_trail.append(
             AuditEvent(
                 stage=WorkflowStage.STAGE_10_CASE_CLOSURE,
-                actor="CHECKER_OFFICER",
+                actor=f"{checker_lvl}_CHECKER",
                 action="CASE_REJECTED",
-                details=f"Checker ({payload.checker_name}) rejected onboarding. Reason: {payload.comments}",
+                details=f"{checker_lvl} Checker ({payload.checker_name}) rejected onboarding. Reason: {payload.comments}",
             )
         )
 
@@ -373,12 +429,15 @@ def submit_mlro_decision(case_id: str, decision: str = Form(...), notes: str = F
     if decision == "APPROVED":
         case.status = CaseStatus.APPROVED_EDD
         case.current_stage = WorkflowStage.STAGE_10_CASE_CLOSURE
+        case.current_queue = ComplianceQueue.COMPLETED_ARCHIVE
     elif decision == "REJECTED":
         case.status = CaseStatus.REJECTED
         case.current_stage = WorkflowStage.STAGE_10_CASE_CLOSURE
+        case.current_queue = ComplianceQueue.COMPLETED_ARCHIVE
     else:
         case.status = CaseStatus.RETURNED_TO_MAKER
         case.current_stage = WorkflowStage.STAGE_7_MAKER_COMPLETION
+        case.current_queue = ComplianceQueue.MAKER_QUEUE
 
     case.audit_trail.append(
         AuditEvent(

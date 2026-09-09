@@ -74,6 +74,15 @@ class WorkflowStage(str, Enum):
     STAGE_12_ONGOING_MONITORING = "STAGE_12_ONGOING_MONITORING"
 
 
+class ComplianceQueue(str, Enum):
+    MAKER_QUEUE = "MAKER_QUEUE"
+    L1_CHECKER_QUEUE = "L1_CHECKER_QUEUE"
+    L2_CHECKER_QUEUE = "L2_CHECKER_QUEUE"
+    MLRO_QUEUE = "MLRO_QUEUE"
+    PERIODIC_MONITORING_QUEUE = "PERIODIC_MONITORING_QUEUE"
+    COMPLETED_ARCHIVE = "COMPLETED_ARCHIVE"
+
+
 class DocumentType(str, Enum):
     PASSPORT = "PASSPORT"
     NATIONAL_ID = "NATIONAL_ID"
@@ -94,7 +103,10 @@ class CaseStatus(str, Enum):
     ALERT_INVESTIGATION = "ALERT_INVESTIGATION"
     ISSUES_IDENTIFIED = "ISSUES_IDENTIFIED"
     PENDING_CHECKER = "PENDING_CHECKER"
+    PENDING_L1_CHECKER = "PENDING_L1_CHECKER"
+    PENDING_L2_CHECKER = "PENDING_L2_CHECKER"
     RETURNED_TO_MAKER = "RETURNED_TO_MAKER"
+    RETURNED_TO_L1 = "RETURNED_TO_L1"
     ESCALATED_MLRO = "ESCALATED_MLRO"
     APPROVED_SDD = "APPROVED_SDD"
     APPROVED_EDD = "APPROVED_EDD"
@@ -287,9 +299,10 @@ class MakerMemo(BaseModel):
 
 
 class CheckerReview(BaseModel):
-    """Step 8 & 9: Independent Checker Review."""
+    """Step 8 & 9: Independent Checker Review (L1 / L2)."""
+    checker_level: str = "L1"  # "L1" or "L2"
     decision: CaseStatus
-    checker_name: str = "Senior Compliance Officer"
+    checker_name: str = "Compliance Checker"
     comments: str
     rfi_notes: Optional[str] = None
     escalation_reason: Optional[str] = None
@@ -347,8 +360,9 @@ class CaseCreateRequest(BaseModel):
 
 
 class CaseDecisionRequest(BaseModel):
+    checker_level: str = "L1"  # "L1" or "L2"
     decision: CaseStatus
-    checker_name: str = "Senior Compliance Officer"
+    checker_name: str = "Compliance Officer"
     comments: str
     rfi_notes: Optional[str] = None
     escalation_reason: Optional[str] = None
@@ -374,12 +388,15 @@ class KYCCase(BaseModel):
     
     # Step 1 & 2: Trigger & Assignment
     current_stage: WorkflowStage = WorkflowStage.STAGE_2_ASSIGNMENT
+    current_queue: ComplianceQueue = ComplianceQueue.MAKER_QUEUE
     trigger_type: KYCTriggerType = KYCTriggerType.NEW_ONBOARDING
     trigger_source: KYCTriggerSource = KYCTriggerSource.CLIENT_FRONT_OFFICE
     trigger_date: datetime = Field(default_factory=datetime.utcnow)
     priority: PriorityLevel = PriorityLevel.MEDIUM
     assigned_maker: str = "KYC Maker AI Agent (Core)"
     assigned_checker: Optional[str] = "Senior Compliance Checker"
+    assigned_checker_l1: Optional[str] = "L1 Compliance Checker"
+    assigned_checker_l2: Optional[str] = "L2 Senior Compliance Lead"
     business_size: Optional[BusinessSize] = BusinessSize.MEDIUM
     deadline_date: Optional[str] = None
     
@@ -405,6 +422,8 @@ class KYCCase(BaseModel):
     
     # Step 8, 9, 10, 11: Checker Review & Escalation
     checker_review: Optional[CheckerReview] = None
+    l1_review: Optional[CheckerReview] = None
+    l2_review: Optional[CheckerReview] = None
     mlro_escalation: Optional[MLROEscalation] = None
     
     # Step 12: Ongoing Monitoring & Periodic Review

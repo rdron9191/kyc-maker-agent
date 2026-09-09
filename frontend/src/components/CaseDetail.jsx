@@ -161,7 +161,43 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
     }
   };
 
+  // Submit case to L1 Checker Queue (Step 7A -> 8)
+  const handleSubmitToChecker = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/submit-to-checker`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to submit to checker queue');
+      const updated = await res.json();
+      onCaseUpdated(updated);
+      setActiveTab('CHECKER');
+    } catch (err) {
+      alert(`Submission Error: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getQueueBadge = (q) => {
+    switch (q) {
+      case 'MAKER_QUEUE':
+        return { label: 'Maker Queue', bg: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf' };
+      case 'L1_CHECKER_QUEUE':
+        return { label: 'L1 Checker Queue (4-Eyes)', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
+      case 'L2_CHECKER_QUEUE':
+        return { label: 'L2 Senior Checker Queue (6-Eyes)', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
+      case 'MLRO_QUEUE':
+        return { label: 'MLRO Escalation Queue', bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171' };
+      case 'PERIODIC_MONITORING_QUEUE':
+        return { label: 'Periodic Monitoring Queue', bg: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8' };
+      case 'COMPLETED_ARCHIVE':
+        return { label: 'Completed Archive', bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+      default:
+        return { label: q || 'Active Queue', bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' };
+    }
+  };
+
   const status = caseData.status;
+  const queueBadge = getQueueBadge(caseData.current_queue);
   let statusBadge = 'badge-pending';
   if (status === 'APPROVED_SDD' || status === 'APPROVED_EDD' || status === 'CLOSED') statusBadge = 'badge-approved';
   if (status === 'REJECTED') statusBadge = 'badge-rejected';
@@ -418,13 +454,22 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+              Current Queue Location
+            </div>
+            <span className="tag" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', background: queueBadge.bg, color: queueBadge.color, borderColor: queueBadge.color, fontWeight: '700' }}>
+              📍 {queueBadge.label}
+            </span>
+          </div>
+
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
               Workflow Status
             </div>
             <span className={`badge ${statusBadge}`} style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
-              {status.replace('_', ' ')}
+              {status.replace(/_/g, ' ')}
             </span>
           </div>
         </div>
@@ -528,7 +573,8 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
       {activeTab === 'SELF_CHECK' && (
         <MakerSelfCheckView
           selfCheck={caseData.self_check}
-          onSubmitToChecker={() => setActiveTab('CHECKER')}
+          currentQueue={caseData.current_queue}
+          onSubmitToChecker={handleSubmitToChecker}
           isSubmitting={isSubmitting}
         />
       )}

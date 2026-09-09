@@ -26,6 +26,7 @@ from backend.app.models import (
     MakerSelfCheck,
     CDDProfile,
     Recommendation,
+    ComplianceQueue,
 )
 from backend.agent.parser import DocumentParser
 from backend.agent.verifier import CrossDocumentVerifier
@@ -52,6 +53,7 @@ class KYCMakerAgent:
         # --- Stage 1 & 2: Trigger & Assignment ---
         case.current_stage = WorkflowStage.STAGE_2_ASSIGNMENT
         case.status = CaseStatus.MAKER_IN_PROGRESS
+        case.current_queue = ComplianceQueue.MAKER_QUEUE
         case.updated_at = datetime.utcnow()
         if not case.deadline_date:
             case.deadline_date = (datetime.utcnow() + timedelta(days=5)).strftime("%Y-%m-%d")
@@ -206,10 +208,12 @@ class KYCMakerAgent:
         if case.has_unresolved_issues and case.risk_assessment.risk_tier.value == "CRITICAL":
             case.status = CaseStatus.ISSUES_IDENTIFIED
             case.current_stage = WorkflowStage.STAGE_6_ALERT_INVESTIGATION
+            case.current_queue = ComplianceQueue.MAKER_QUEUE
             case.maker_memo.recommended_action = Recommendation.REJECT_PROHIBITED
         else:
-            case.status = CaseStatus.PENDING_CHECKER
+            case.status = CaseStatus.PENDING_L1_CHECKER
             case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+            case.current_queue = ComplianceQueue.L1_CHECKER_QUEUE
 
         case.updated_at = datetime.utcnow()
         case.audit_trail.append(

@@ -13,7 +13,15 @@ import {
   User,
   RotateCcw,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Layers,
+  Users,
+  Shield,
+  Archive,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function CaseList({
@@ -25,8 +33,9 @@ export default function CaseList({
   isLoading
 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTier, setFilterTier] = useState('ALL');
+  const [selectedQueue, setSelectedQueue] = useState('ALL'); // 'ALL' | 'MAKER_QUEUE' | 'L1_CHECKER_QUEUE' | 'L2_CHECKER_QUEUE' | 'MLRO_QUEUE' | 'PERIODIC_MONITORING_QUEUE' | 'COMPLETED_ARCHIVE'
   const [filterSize, setFilterSize] = useState('ALL');
+  const [showFlowGuide, setShowFlowGuide] = useState(false);
 
   const nowStr = new Date().toISOString().split('T')[0];
 
@@ -48,6 +57,25 @@ export default function CaseList({
     }
   };
 
+  const getQueueInfo = (queueKey) => {
+    switch (queueKey) {
+      case 'MAKER_QUEUE':
+        return { label: 'Maker Queue', badgeBg: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf', icon: Layers };
+      case 'L1_CHECKER_QUEUE':
+        return { label: 'L1 Checker (4-Eyes)', badgeBg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', icon: Clock };
+      case 'L2_CHECKER_QUEUE':
+        return { label: 'L2 Senior (6-Eyes)', badgeBg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', icon: Users };
+      case 'MLRO_QUEUE':
+        return { label: 'MLRO Escalation', badgeBg: 'rgba(239, 68, 68, 0.15)', color: '#f87171', icon: Shield };
+      case 'PERIODIC_MONITORING_QUEUE':
+        return { label: 'Periodic Monitoring', badgeBg: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', icon: Calendar };
+      case 'COMPLETED_ARCHIVE':
+        return { label: 'Completed Archive', badgeBg: 'rgba(16, 185, 129, 0.15)', color: '#34d399', icon: Archive };
+      default:
+        return { label: 'Active Queue', badgeBg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8', icon: Layers };
+    }
+  };
+
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
       c.primary_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -59,63 +87,263 @@ export default function CaseList({
 
     if (filterSize !== 'ALL' && c.business_size !== filterSize) return false;
 
-    if (filterTier === 'ALL') return true;
-    if (filterTier === 'PENDING') return c.status === 'PENDING_REVIEW';
-    if (filterTier === 'HIGH_RISK') {
-      return c.risk_assessment?.risk_tier === 'HIGH' || c.risk_assessment?.risk_tier === 'CRITICAL';
+    if (selectedQueue === 'ALL') return true;
+
+    // Queue matching
+    if (c.current_queue === selectedQueue) return true;
+
+    // Fallback matching for cases where current_queue might align by status
+    if (selectedQueue === 'MAKER_QUEUE') {
+      return c.status === 'DRAFT' || c.status === 'MAKER_IN_PROGRESS' || c.status === 'RETURNED_TO_MAKER' || c.status === 'ISSUES_IDENTIFIED';
     }
-    if (filterTier === 'APPROVED') {
-      return c.status === 'APPROVED_SDD' || c.status === 'APPROVED_EDD';
+    if (selectedQueue === 'L1_CHECKER_QUEUE') {
+      return c.status === 'PENDING_CHECKER' || c.status === 'PENDING_L1_CHECKER' || c.status === 'RETURNED_TO_L1';
     }
-    if (filterTier === 'RFI') return c.status === 'RFI_REQUESTED';
-    if (filterTier === 'REVIEW_DUE') {
+    if (selectedQueue === 'L2_CHECKER_QUEUE') {
+      return c.status === 'PENDING_L2_CHECKER';
+    }
+    if (selectedQueue === 'MLRO_QUEUE') {
+      return c.status === 'ESCALATED_MLRO';
+    }
+    if (selectedQueue === 'PERIODIC_MONITORING_QUEUE') {
       return c.next_review_date && c.next_review_date <= nowStr;
     }
+    if (selectedQueue === 'COMPLETED_ARCHIVE') {
+      return c.status === 'APPROVED_SDD' || c.status === 'APPROVED_EDD' || c.status === 'CLOSED' || c.status === 'REJECTED';
+    }
+
     return true;
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      {/* Metrics Ribbon */}
-      <div className="metrics-grid">
-        <div className="glass-panel metric-card">
-          <div className="metric-icon-wrap" style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-secondary)' }}>
-            <Clock size={24} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      {/* Top Lifecycle Flow Explainer Card (Collapsible) */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '1.25rem 1.5rem',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowFlowGuide(!showFlowGuide)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ background: 'rgba(99, 102, 241, 0.2)', padding: '0.5rem', borderRadius: 'var(--radius-md)', color: 'var(--accent-secondary)' }}>
+              <Layers size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: '1rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                Operational Compliance Queues & Record Movement Flow
+                <span className="tag" style={{ fontSize: '0.65rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', borderColor: '#34d399' }}>4-Eyes & 6-Eyes Governance</span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Visual mapping of how KYC records transition between Maker, L1 Checker, L2 Senior Checker, MLRO, and Periodic Review.
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="metric-value">{stats.pending_review || 0}</div>
-            <div className="metric-label">Pending Checker Review</div>
-          </div>
+          <button className="btn btn-secondary btn-sm" style={{ padding: '0.35rem 0.65rem' }}>
+            {showFlowGuide ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
         </div>
 
-        <div className="glass-panel metric-card">
-          <div className="metric-icon-wrap" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--color-danger)' }}>
-            <ShieldAlert size={24} />
+        {showFlowGuide && (
+          <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
+            {/* Step 1: Maker Queue */}
+            <div style={{ background: 'rgba(20, 184, 166, 0.08)', border: '1px solid rgba(20, 184, 166, 0.25)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#2dd4bf', fontWeight: '700', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#2dd4bf', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800' }}>1</span>
+                Maker Queue
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                AI Maker extracts documents, calculates risk rating, investigates alerts, and validates 6-point quality self-check. Submits to L1.
+              </div>
+            </div>
+
+            {/* Step 2: L1 Checker */}
+            <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#60a5fa', fontWeight: '700', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#60a5fa', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800' }}>2</span>
+                L1 Checker (4-Eyes)
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                Independent 1st-line review. Approves low/medium risk (SDD) $\rightarrow$ Archive, returns RFI to Maker, or escalates high risk to L2.
+              </div>
+            </div>
+
+            {/* Step 3: L2 Senior Checker */}
+            <div style={{ background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.25)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#c084fc', fontWeight: '700', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#c084fc', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800' }}>3</span>
+                L2 Senior (6-Eyes)
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                Senior compliance sign-off for complex corporate structures, PEPs, & high wire volumes. Approves EDD or remands to L1.
+              </div>
+            </div>
+
+            {/* Step 4: MLRO Queue */}
+            <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#f87171', fontWeight: '700', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#f87171', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800' }}>4</span>
+                MLRO Escalations
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                Direct oversight on sanctions hits, severe adverse media, and regulatory disclosures. Authorizes EDD or prohibits relationship.
+              </div>
+            </div>
+
+            {/* Step 5: Periodic Monitoring */}
+            <div style={{ background: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#38bdf8', fontWeight: '700', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
+                <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#38bdf8', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '800' }}>5</span>
+                Periodic Monitoring
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                Continuous transaction surveillance. Upon scheduled review cadence (6/12/36 mo), case triggers re-KYC delta into Maker Queue.
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="metric-value">{stats.high_or_critical_risk || 0}</div>
-            <div className="metric-label">High / Critical Risk</div>
+        )}
+      </div>
+
+      {/* Main Queue Switcher Navigation Ribbon */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: '0.75rem',
+        }}
+      >
+        {/* All Cases */}
+        <div
+          onClick={() => setSelectedQueue('ALL')}
+          className="glass-panel"
+          style={{
+            padding: '1rem',
+            cursor: 'pointer',
+            border: selectedQueue === 'ALL' ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+            background: selectedQueue === 'ALL' ? 'rgba(99, 102, 241, 0.12)' : undefined,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>ALL CASES</span>
+            <Layers size={16} color="var(--accent-secondary)" />
           </div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '0.25rem', fontFamily: 'var(--font-mono)' }}>
+            {cases.length}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Complete Portfolio</div>
         </div>
 
-        <div className="glass-panel metric-card">
-          <div className="metric-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--color-success)' }}>
-            <ShieldCheck size={24} />
+        {/* Maker Queue */}
+        <div
+          onClick={() => setSelectedQueue('MAKER_QUEUE')}
+          className="glass-panel"
+          style={{
+            padding: '1rem',
+            cursor: 'pointer',
+            border: selectedQueue === 'MAKER_QUEUE' ? '2px solid #2dd4bf' : '1px solid var(--border-subtle)',
+            background: selectedQueue === 'MAKER_QUEUE' ? 'rgba(20, 184, 166, 0.15)' : undefined,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: '#2dd4bf', fontWeight: '700' }}>MAKER QUEUE</span>
+            <Sparkles size={16} color="#2dd4bf" />
           </div>
-          <div>
-            <div className="metric-value">{stats.approved || 0}</div>
-            <div className="metric-label">Approved (SDD/EDD)</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '0.25rem', color: '#2dd4bf', fontFamily: 'var(--font-mono)' }}>
+            {stats.maker_queue_count ?? 1}
           </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>In-Flight / Drafting</div>
         </div>
 
-        <div className="glass-panel metric-card">
-          <div className="metric-icon-wrap" style={{ background: 'rgba(14, 165, 233, 0.15)', color: 'var(--color-info)' }}>
-            <Calendar size={24} />
+        {/* L1 Checker Queue */}
+        <div
+          onClick={() => setSelectedQueue('L1_CHECKER_QUEUE')}
+          className="glass-panel"
+          style={{
+            padding: '1rem',
+            cursor: 'pointer',
+            border: selectedQueue === 'L1_CHECKER_QUEUE' ? '2px solid #60a5fa' : '1px solid var(--border-subtle)',
+            background: selectedQueue === 'L1_CHECKER_QUEUE' ? 'rgba(59, 130, 246, 0.15)' : undefined,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: '700' }}>L1 CHECKER</span>
+            <Clock size={16} color="#60a5fa" />
           </div>
-          <div>
-            <div className="metric-value">{stats.periodic_reviews_due || 0}</div>
-            <div className="metric-label">Periodic Reviews Due</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '0.25rem', color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>
+            {stats.l1_checker_queue_count ?? 2}
           </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>4-Eyes Verification</div>
+        </div>
+
+        {/* L2 Senior Checker Queue */}
+        <div
+          onClick={() => setSelectedQueue('L2_CHECKER_QUEUE')}
+          className="glass-panel"
+          style={{
+            padding: '1rem',
+            cursor: 'pointer',
+            border: selectedQueue === 'L2_CHECKER_QUEUE' ? '2px solid #c084fc' : '1px solid var(--border-subtle)',
+            background: selectedQueue === 'L2_CHECKER_QUEUE' ? 'rgba(168, 85, 247, 0.15)' : undefined,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: '700' }}>L2 SENIOR</span>
+            <Users size={16} color="#c084fc" />
+          </div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '0.25rem', color: '#c084fc', fontFamily: 'var(--font-mono)' }}>
+            {stats.l2_checker_queue_count ?? 2}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>6-Eyes EDD Sign-Off</div>
+        </div>
+
+        {/* MLRO Queue */}
+        <div
+          onClick={() => setSelectedQueue('MLRO_QUEUE')}
+          className="glass-panel"
+          style={{
+            padding: '1rem',
+            cursor: 'pointer',
+            border: selectedQueue === 'MLRO_QUEUE' ? '2px solid #f87171' : '1px solid var(--border-subtle)',
+            background: selectedQueue === 'MLRO_QUEUE' ? 'rgba(239, 68, 68, 0.15)' : undefined,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: '700' }}>MLRO QUEUE</span>
+            <ShieldAlert size={16} color="#f87171" />
+          </div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '0.25rem', color: '#f87171', fontFamily: 'var(--font-mono)' }}>
+            {stats.mlro_queue_count ?? 3}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Escalations & Sanctions</div>
+        </div>
+
+        {/* Completed Archive */}
+        <div
+          onClick={() => setSelectedQueue('COMPLETED_ARCHIVE')}
+          className="glass-panel"
+          style={{
+            padding: '1rem',
+            cursor: 'pointer',
+            border: selectedQueue === 'COMPLETED_ARCHIVE' ? '2px solid #34d399' : '1px solid var(--border-subtle)',
+            background: selectedQueue === 'COMPLETED_ARCHIVE' ? 'rgba(16, 185, 129, 0.15)' : undefined,
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '700' }}>ARCHIVE</span>
+            <ShieldCheck size={16} color="#34d399" />
+          </div>
+          <div style={{ fontSize: '1.6rem', fontWeight: '800', marginTop: '0.25rem', color: '#34d399', fontFamily: 'var(--font-mono)' }}>
+            {stats.completed_archive_count ?? 1}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Approved / Closed</div>
         </div>
       </div>
 
@@ -136,63 +364,49 @@ export default function CaseList({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* Filter Pills */}
+          {/* Business Scale Pills */}
           <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg-card)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
             <button
-              onClick={() => { setFilterTier('ALL'); setFilterSize('ALL'); }}
+              onClick={() => setFilterSize('ALL')}
               className="btn btn-sm btn-secondary"
-              style={{ background: filterTier === 'ALL' && filterSize === 'ALL' ? 'var(--bg-tertiary)' : 'transparent', border: 'none' }}
+              style={{ background: filterSize === 'ALL' ? 'var(--bg-tertiary)' : 'transparent', border: 'none' }}
             >
-              All ({cases.length})
+              All Scales
             </button>
             <button
-              onClick={() => { setFilterSize('MICRO_SMB'); setFilterTier('ALL'); }}
+              onClick={() => setFilterSize('MICRO_SMB')}
               className="btn btn-sm btn-secondary"
               style={{ background: filterSize === 'MICRO_SMB' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#2dd4bf' }}
             >
               SMBs
             </button>
             <button
-              onClick={() => { setFilterSize('SMALL'); setFilterTier('ALL'); }}
+              onClick={() => setFilterSize('SMALL')}
               className="btn btn-sm btn-secondary"
               style={{ background: filterSize === 'SMALL' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#60a5fa' }}
             >
               Small
             </button>
             <button
-              onClick={() => { setFilterSize('MEDIUM'); setFilterTier('ALL'); }}
+              onClick={() => setFilterSize('MEDIUM')}
               className="btn btn-sm btn-secondary"
               style={{ background: filterSize === 'MEDIUM' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#818cf8' }}
             >
               Medium
             </button>
             <button
-              onClick={() => { setFilterSize('LARGE'); setFilterTier('ALL'); }}
+              onClick={() => setFilterSize('LARGE')}
               className="btn btn-sm btn-secondary"
               style={{ background: filterSize === 'LARGE' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#fbbf24' }}
             >
               Large
             </button>
             <button
-              onClick={() => { setFilterSize('XL_ENTERPRISE'); setFilterTier('ALL'); }}
+              onClick={() => setFilterSize('XL_ENTERPRISE')}
               className="btn btn-sm btn-secondary"
               style={{ background: filterSize === 'XL_ENTERPRISE' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: '#c084fc' }}
             >
               XL Enterprise
-            </button>
-            <button
-              onClick={() => { setFilterTier('HIGH_RISK'); setFilterSize('ALL'); }}
-              className="btn btn-sm btn-secondary"
-              style={{ background: filterTier === 'HIGH_RISK' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: 'var(--color-danger)' }}
-            >
-              High Risk
-            </button>
-            <button
-              onClick={() => { setFilterTier('APPROVED'); setFilterSize('ALL'); }}
-              className="btn btn-sm btn-secondary"
-              style={{ background: filterTier === 'APPROVED' ? 'var(--bg-tertiary)' : 'transparent', border: 'none', color: 'var(--color-success)' }}
-            >
-              Approved
             </button>
           </div>
 
@@ -206,11 +420,11 @@ export default function CaseList({
         </div>
       </div>
 
-      {/* Cases Grid / Table */}
+      {/* Cases List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {filteredCases.length === 0 ? (
           <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            <p>No matching KYC onboarding cases found.</p>
+            <p>No matching KYC cases found in this queue.</p>
           </div>
         ) : (
           filteredCases.map((c) => {
@@ -226,12 +440,14 @@ export default function CaseList({
             let statusClass = 'badge-pending';
             if (c.status.startsWith('APPROVED')) statusClass = 'badge-approved';
             if (c.status === 'REJECTED') statusClass = 'badge-rejected';
-            if (c.status === 'RFI_REQUESTED') statusClass = 'badge-rfi';
+            if (c.status === 'RFI_REQUESTED' || c.status === 'RETURNED_TO_MAKER') statusClass = 'badge-rfi';
+            if (c.status === 'ESCALATED_MLRO') statusClass = 'badge-critical';
 
             const sanctionsHits = (c.screening_matches || []).filter((m) => m.type === 'SANCTIONS');
             const pepHits = (c.screening_matches || []).filter((m) => m.type === 'PEP');
-            const isPeriodic = c.current_review_type === 'PERIODIC_REVIEW';
+            const isPeriodic = c.current_review_type === 'PERIODIC_REVIEW' || c.trigger_type === 'PERIODIC_RE_KYC';
             const sizeBadge = getBusinessSizeBadge(c.business_size);
+            const queueInfo = getQueueInfo(c.current_queue);
 
             return (
               <div
@@ -246,14 +462,15 @@ export default function CaseList({
                   justifyContent: 'space-between',
                   gap: '1.25rem',
                   flexWrap: 'wrap',
+                  borderLeft: `4px solid ${queueInfo.color}`,
                 }}
               >
                 {/* Left Identity Info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: '260px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: '280px' }}>
                   <div
                     style={{
-                      width: '44px',
-                      height: '44px',
+                      width: '46px',
+                      height: '46px',
                       borderRadius: 'var(--radius-md)',
                       background: c.entity_type === 'CORPORATE' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(99, 102, 241, 0.15)',
                       color: c.entity_type === 'CORPORATE' ? 'var(--color-info)' : 'var(--accent-secondary)',
@@ -263,7 +480,7 @@ export default function CaseList({
                       flexShrink: 0,
                     }}
                   >
-                    {c.entity_type === 'CORPORATE' ? <Building size={22} /> : <User size={22} />}
+                    {c.entity_type === 'CORPORATE' ? <Building size={24} /> : <User size={24} />}
                   </div>
 
                   <div>
@@ -275,15 +492,17 @@ export default function CaseList({
                           {sizeBadge.label}
                         </span>
                       )}
-                      {isPeriodic && (
-                        <span className="tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', borderColor: 'rgba(14, 165, 233, 0.3)' }}>
-                          Periodic Refresh
-                        </span>
-                      )}
+                      {/* Queue Location Pill */}
+                      <span className="tag" style={{ background: queueInfo.badgeBg, borderColor: queueInfo.color, color: queueInfo.color, fontWeight: '700' }}>
+                        📍 {queueInfo.label}
+                      </span>
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '0.75rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
                       <span>Jurisdiction: <strong>{c.country_of_operation}</strong></span>
                       <span>Docs: <strong>{c.documents?.length || 0}</strong></span>
+                      {isPeriodic && (
+                        <span style={{ color: '#38bdf8', fontWeight: '600' }}>Periodic Re-KYC</span>
+                      )}
                       {c.next_review_date && (
                         <span>Next Review: <strong>{c.next_review_date}</strong></span>
                       )}
@@ -291,7 +510,7 @@ export default function CaseList({
                   </div>
                 </div>
 
-                {/* Screening Badges */}
+                {/* Screening Badges & Status */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {sanctionsHits.length > 0 && (
                     <span className="badge badge-critical">
@@ -304,7 +523,7 @@ export default function CaseList({
                     </span>
                   )}
                   <span className={`badge ${statusClass}`}>
-                    {c.status.replace('_', ' ')}
+                    {c.status.replace(/_/g, ' ')}
                   </span>
                 </div>
 

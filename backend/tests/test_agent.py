@@ -104,7 +104,7 @@ def test_end_to_end_maker_pipeline_clean_case():
     )
     
     analyzed = agent.process_case(case)
-    assert analyzed.status == CaseStatus.PENDING_CHECKER
+    assert analyzed.status in [CaseStatus.PENDING_CHECKER, CaseStatus.PENDING_L1_CHECKER]
     assert analyzed.risk_assessment.risk_tier == RiskTier.LOW
     assert analyzed.maker_memo.recommended_action == Recommendation.APPROVE_SDD
 

@@ -3,7 +3,7 @@
 import copy
 import uuid
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from backend.app.models import (
     KYCCase,
     DocumentModel,
@@ -12,6 +12,10 @@ from backend.app.models import (
     ExtractedField,
     CaseStatus,
     AuditEvent,
+    ComplianceQueue,
+    WorkflowStage,
+    CheckerReview,
+    MLROEscalation,
 )
 from backend.app.mock_data import PRESET_DEMO_CASES
 from backend.agent.orchestrator import KYCMakerAgent
@@ -96,6 +100,52 @@ class CaseDatabase:
             
             # Run Maker pipeline
             self.agent.process_case(case)
+
+            # Assign realistic operational queues & reviews for demo cases
+            c_num = case.case_number
+            if c_num == "KYC-2026-0891":  # Alexander Wright
+                case.status = CaseStatus.APPROVED_SDD
+                case.current_queue = ComplianceQueue.COMPLETED_ARCHIVE
+                case.current_stage = WorkflowStage.STAGE_10_CASE_CLOSURE
+                case.checker_review = CheckerReview(
+                    checker_level="L1",
+                    checker_name="Sarah Jenkins (L1 Checker)",
+                    decision=CaseStatus.APPROVED_SDD,
+                    comments="Clean retail onboarding credentials verified. Identity confidence 99%. Approved SDD.",
+                    review_cycle_months=36,
+                    next_review_date=(datetime.utcnow() + timedelta(days=36 * 30)).strftime("%Y-%m-%d"),
+                )
+                case.l1_review = case.checker_review
+            elif c_num in ["KYC-2026-0894", "KYC-2026-0895"]:  # Quantum Dynamics & Apex Nordic
+                case.status = CaseStatus.PENDING_L1_CHECKER
+                case.current_queue = ComplianceQueue.L1_CHECKER_QUEUE
+                case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+            elif c_num in ["KYC-2026-0896", "KYC-2026-0897"]:  # Veritas Logistics & Nexus Pay
+                case.status = CaseStatus.PENDING_L2_CHECKER
+                case.current_queue = ComplianceQueue.L2_CHECKER_QUEUE
+                case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+                case.l1_review = CheckerReview(
+                    checker_level="L1",
+                    checker_name="Liam O'Connor (L1 Checker)",
+                    decision=CaseStatus.PENDING_L2_CHECKER,
+                    comments="L1 4-eyes review completed. Escalating to L2 Senior Checker for 6-eyes sign-off due to PEP linkage / high-velocity wire activity.",
+                    escalation_reason="6-Eyes senior oversight required under Global KYC policy",
+                    review_cycle_months=12,
+                )
+            elif c_num == "KYC-2026-0898":  # Aethelgard Heavy Industries
+                case.status = CaseStatus.MAKER_IN_PROGRESS
+                case.current_queue = ComplianceQueue.MAKER_QUEUE
+                case.current_stage = WorkflowStage.STAGE_4_CDD
+            elif c_num in ["KYC-2026-0892", "KYC-2026-0893", "KYC-2026-0899"]:  # Elena, Tariq, Atlas Trans-Oceanic
+                case.status = CaseStatus.ESCALATED_MLRO
+                case.current_queue = ComplianceQueue.MLRO_QUEUE
+                case.current_stage = WorkflowStage.STAGE_11_ESCALATION
+                reason = "Sanctions match on OFAC SDN" if c_num == "KYC-2026-0893" else "PEP Tier 1 corruption inquiry" if c_num == "KYC-2026-0892" else "XL Enterprise high wire turnover authorization (> $250M/mo)"
+                case.mlro_escalation = MLROEscalation(
+                    escalated_by="Senior Compliance Officer",
+                    escalation_reason=reason,
+                )
+
             self._cases[case.id] = case
 
     def list_cases(self) -> List[KYCCase]:
