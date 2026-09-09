@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   RotateCcw,
@@ -16,8 +16,15 @@ import {
   Calendar,
   RefreshCw,
   Search,
-  Shield
+  Shield,
+  ChevronDown,
+  FileSpreadsheet,
+  FileCode,
+  Table,
+  Check
 } from 'lucide-react';
+
+import { exportToPDF, exportToExcel, exportToCSV, exportToJSON } from '../utils/exportDossier';
 
 import WorkflowStepper from './WorkflowStepper';
 import CDDAnalysisView from './CDDAnalysisView';
@@ -35,6 +42,33 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isPeriodicRunning, setIsPeriodicRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportFeedback, setExportFeedback] = useState('');
+  const exportMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const triggerExport = (format) => {
+    try {
+      if (format === 'PDF') exportToPDF(caseData);
+      else if (format === 'XLS') exportToExcel(caseData);
+      else if (format === 'CSV') exportToCSV(caseData);
+      else if (format === 'JSON') exportToJSON(caseData);
+      setShowExportMenu(false);
+      setExportFeedback(`Exported ${format}`);
+      setTimeout(() => setExportFeedback(''), 3500);
+    } catch (err) {
+      alert(`Export error: ${err.message}`);
+    }
+  };
 
   if (!caseData) return null;
 
@@ -127,17 +161,6 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
     }
   };
 
-  // Export Audit Dossier
-  const handleExportJSON = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(caseData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `KYC_DOSSIER_${caseData.case_number}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
   const status = caseData.status;
   let statusBadge = 'badge-pending';
   if (status === 'APPROVED_SDD' || status === 'APPROVED_EDD' || status === 'CLOSED') statusBadge = 'badge-approved';
@@ -154,6 +177,13 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {exportFeedback && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: '600', animation: 'fadeIn 0.2s ease-out' }}>
+              <Check size={13} />
+              <span>{exportFeedback}</span>
+            </div>
+          )}
+
           <button
             onClick={handleTriggerPeriodicReview}
             disabled={isPeriodicRunning}
@@ -173,9 +203,165 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
             {isAnalyzing ? 'Maker Analyzing...' : 'Re-Run Maker Agent'}
           </button>
 
-          <button onClick={handleExportJSON} className="btn btn-secondary">
-            <Download size={16} /> Export Dossier
-          </button>
+          {/* Multi-Format Export Dropdown */}
+          <div style={{ position: 'relative' }} ref={exportMenuRef}>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="btn btn-secondary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                background: showExportMenu ? 'rgba(99, 102, 241, 0.15)' : undefined,
+                borderColor: showExportMenu ? 'var(--accent-primary)' : undefined,
+              }}
+              title="Download KYC Dossier"
+            >
+              <Download size={16} />
+              <span>Export Dossier</span>
+              <ChevronDown size={14} style={{ transform: showExportMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+            </button>
+
+            {showExportMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  width: '300px',
+                  padding: '0.5rem',
+                  zIndex: 100,
+                  boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'rgba(15, 23, 42, 0.97)',
+                  backdropFilter: 'blur(20px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.35rem',
+                }}
+              >
+                <div style={{ padding: '0.4rem 0.6rem 0.2rem', fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Select Dossier Format
+                </div>
+
+                {/* PDF Option */}
+                <button
+                  onClick={() => triggerExport('PDF')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.65rem 0.75rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s',
+                    width: '100%',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.18)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <FileText size={18} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>PDF Document (.pdf)</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Formatted audit dossier & evidence report</span>
+                  </div>
+                </button>
+
+                {/* Excel XLSX Option */}
+                <button
+                  onClick={() => triggerExport('XLS')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.65rem 0.75rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s',
+                    width: '100%',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.12)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.18)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <FileSpreadsheet size={18} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Excel Workbook (.xlsx)</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Multi-sheet risk, screening & audit tabs</span>
+                  </div>
+                </button>
+
+                {/* CSV Option */}
+                <button
+                  onClick={() => triggerExport('CSV')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.65rem 0.75rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s',
+                    width: '100%',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(14, 165, 233, 0.12)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(14, 165, 233, 0.18)', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Table size={18} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>CSV Table (.csv)</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Structured tabular compliance log</span>
+                  </div>
+                </button>
+
+                {/* JSON Option */}
+                <button
+                  onClick={() => triggerExport('JSON')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.65rem 0.75rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s',
+                    width: '100%',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(168, 85, 247, 0.12)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'rgba(168, 85, 247, 0.18)', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <FileCode size={18} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Raw Payload (.json)</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Complete JSON data model</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => onDeleteCase(caseData.id)}

@@ -392,6 +392,26 @@ def submit_mlro_decision(case_id: str, decision: str = Form(...), notes: str = F
     return case
 
 
+@app.get("/api/cases/{case_id}/export/csv")
+def export_case_csv(case_id: str):
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    output = io.StringIO()
+    output.write("Case Number,Primary Name,Entity Type,Country,Status,Stage,Overall Risk,Risk Tier\n")
+    risk_score = case.risk_assessment.overall_score if case.risk_assessment else 0
+    risk_tier = case.risk_assessment.risk_tier.value if case.risk_assessment else "N/A"
+    output.write(f'"{case.case_number}","{case.primary_name}","{case.entity_type.value}","{case.country_of_operation}","{case.status.value}","{case.current_stage.value}",{risk_score},"{risk_tier}"\n')
+    
+    from fastapi.responses import Response
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=KYC_{case.case_number}.csv"}
+    )
+
+
 @app.post("/api/cases/reset")
 def reset_database():
     db.initialize_presets()
