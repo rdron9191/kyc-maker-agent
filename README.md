@@ -1,60 +1,62 @@
-# KYC Maker — AI Compliance Assistant
+# KYC Maker — AI Compliance Assistant & Operational Queue System
 
-An autonomous, multi-agent AI system for Know Your Customer (KYC) and Know Your Business (KYB) compliance. The **KYC Maker Agent** automates document parsing, identity extraction, cross-document reconciliation, screening against global sanctions/PEP/adverse media registries, Customer Risk Rating (CRR) scoring, and synthesis of executive compliance dossiers for human **Compliance Checkers**.
+An autonomous, multi-agent AI system for Know Your Customer (KYC) and Know Your Business (KYB) compliance. The **KYC Maker Agent** automates the entire 12-stage compliance lifecycle: document parsing, identity extraction, cross-document reconciliation, screening against global sanctions/PEP/adverse media registries, 5-factor Customer Risk Rating (CRR) scoring, 6-point Maker quality self-check, and multi-tier approval routing across **Maker**, **L1 Checker (4-Eyes)**, **L2 Senior Checker (6-Eyes)**, and **MLRO Escalation** queues.
 
 ---
 
 ## 🚀 Key Capabilities
 
-1. **Multimodal Document Parsing & OCR**:
-   - Ingests Passports, National IDs, Driver's Licenses, Utility Bills, Bank Statements, and Certificates of Incorporation.
-   - Extracts structured identity fields with per-field confidence scores and ICAO 9303 MRZ verification.
-2. **Cross-Document Consistency Verification**:
-   - Compares metadata across submitted files to detect name mismatches, expired credentials, address discrepancies, or missing UBO identification.
-3. **Automated Screening & Negative News Surveillance**:
+1. **Operational Compliance Queues & 4-Eyes / 6-Eyes Governance**:
+   - **Maker Queue**: AI data extraction, discrepancy flagging, screening alert investigations, and 6-point quality self-check.
+   - **L1 Checker Queue (4-Eyes)**: Independent first-line compliance review. Approves Simplified Due Diligence (SDD) or escalates complex/high-risk files.
+   - **L2 Senior Checker Queue (6-Eyes)**: Senior compliance sign-off for PEP relationships, complex corporate structures, or high-volume wire profiles.
+   - **MLRO Escalation Queue**: Money Laundering Reporting Officer executive disposition for sanctions matches and regulatory exclusions.
+   - **Periodic Monitoring Queue**: Automated surveillance triggering periodic re-KYC refreshes on 6, 12, 24, or 36-month cycles.
+   - **Completed Archive**: Sealed immutable repository of approved SDD/EDD and closed cases.
+
+2. **Multimodal Document Parsing & OCR**:
+   - Ingests Passports, National IDs, Driver's Licenses, Utility Bills, Bank Statements, Certificates of Incorporation, and Articles of Association.
+   - Structured extraction with per-field confidence scores and ICAO 9303 MRZ verification.
+
+3. **Cross-Document Verification & UBO Analysis**:
+   - Reconciles identities across files to detect name mismatches, expired credentials, address inconsistencies, or missing $\ge 25\%$ Ultimate Beneficial Owners (UBOs).
+
+4. **Multi-List Screening & Alert Investigation**:
    - **Sanctions**: OFAC SDN, EU Consolidated, UN Security Council, and UK OFSI matching.
-   - **PEP (Politically Exposed Persons)**: Identifies senior government officials, ministers, and close associates.
-   - **Adverse Media**: Tracks financial crimes, money laundering probes, regulatory enforcement, and bribery investigations.
-   - **Jurisdiction Risk**: Evaluates FATF high-risk jurisdictions, blacklists, and grey lists.
-4. **Customer Risk Rating (CRR) Engine**:
-   - Computes weighted risk scores (0–100) mapping to regulatory tiers (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
-   - Recommends due diligence protocols (`Standard SDD`, `Enhanced EDD`, `RFI Required`, `Prohibited`).
-5. **AI Maker Case Dossier & Compliance Memo**:
-   - Synthesizes an executive compliance memo detailing findings, line-by-line identity audit, false-positive analysis, and recommended action.
-6. **Modern Compliance Cockpit (React + Vite)**:
-   - High-density dark mode dashboard with live case queue, circular risk gauges, side-by-side document inspection, and 1-click Checker sign-offs (`Approve SDD`, `Approve EDD`, `Request RFI`, `Reject`).
+   - **PEP (Politically Exposed Persons)**: Tier-1 to Tier-3 government officials and close associates.
+   - **Adverse Media**: Structured negative news surveillance with written disposition rationales.
+
+5. **Multi-Scale Business Support**:
+   - Pre-configured profiles and tailored workflows across **Micro SMB**, **Small Business**, **Medium Corporate**, **Large Enterprise**, and **XL Conglomerate** scales.
+
+6. **Multi-Format Dossier Export**:
+   - 1-Click export to **PDF Document (.pdf)**, **Excel Workbook (.xlsx)**, **CSV Tabular Log (.csv)**, and **Raw JSON Payload (.json)**.
 
 ---
 
-## 🏗️ Architecture
+## 🔄 12-Stage KYC Process Flow & Record Movement
 
 ```mermaid
-flowchart TD
-    subgraph Client [Compliance Cockpit - React + Vite]
-        UI1[Case Dashboard & Metrics]
-        UI2[Document Viewer & OCR Overlay]
-        UI3[Verification Matrix]
-        UI4[Screening Hits Explorer]
-        UI5[Maker Memo & Checker Actions]
-    end
+graph TD
+    Trigger([1. Trigger: Onboarding / Periodic / Event]) --> Maker[2-7. Maker Queue: AI Extraction & Quality Self-Check]
+    Maker -->|Submit for 4-Eyes Review| L1[8-9. L1 Checker Queue: 4-Eyes Verification]
+    
+    L1 -->|Clean Low/Medium Risk| Archive([10. Completed Archive: SDD Approved])
+    L1 -->|Deficiencies Identified| Maker
+    L1 -->|High Risk / Complex UBO / Heightened Volume| L2[8-9. L2 Senior Checker Queue: 6-Eyes Sign-Off]
+    L1 -->|Sanctions Hit / Critical PEP| MLRO[11. MLRO Escalation Queue]
 
-    subgraph Backend [FastAPI REST Backend]
-        API[API Router]
-        DB[(In-Memory Case Store / Presets)]
-        
-        subgraph Agent [KYC Maker AI Agent Pipeline]
-            P1[1. Document Parser & MRZ]
-            P2[2. Cross-Document Verifier]
-            P3[3. Sanctions / PEP / Media Screener]
-            P4[4. Customer Risk Rating Engine]
-            P5[5. Compliance Memo Generator]
-        end
-    end
+    L2 -->|Senior Approval Granted| Archive
+    L2 -->|Remand to L1| L1
+    L2 -->|Return to Maker| Maker
+    L2 -->|Escalate to MLRO| MLRO
 
-    UI1 & UI2 & UI3 & UI4 & UI5 <-->|REST API / JSON| API
-    API --> Agent
-    P1 --> P2 --> P3 --> P4 --> P5
-    Agent --> DB
+    MLRO -->|Authorized with Conditions| Archive
+    MLRO -->|Decline / Prohibit Relationship| Archive
+    MLRO -->|Demand Further Evidence| Maker
+
+    Archive -->|Cadence Reached: 6 / 12 / 36 Mo| Monitoring[12. Periodic Monitoring Queue]
+    Monitoring -->|Trigger Delta Refresh| Maker
 ```
 
 ---
@@ -69,9 +71,10 @@ source ../.venv/bin/activate
 uvicorn backend.app.main:app --reload --port 8000
 ```
 
-The REST API and interactive OpenAPI documentation will be accessible at:
+The REST API and OpenAPI interactive documentation are accessible at:
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Health Check**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+- **Queue Stats**: [http://localhost:8000/api/stats](http://localhost:8000/api/stats)
 
 ### 2. Start the Frontend Cockpit (Port 5173)
 
@@ -84,34 +87,42 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 🧪 Built-in Demonstration Scenarios
+## 🧪 Demonstration Profiles Across Business Scales
 
-The system comes preloaded with four representative compliance onboarding cases:
-
-| Case ID | Name / Entity | Type | Highlights & Risk Drivers | Maker Recommendation |
+| Case ID | Name / Entity | Scale / Type | Current Queue | Risk Tier & Drivers |
 |---|---|---|---|---|
-| **KYC-2026-0891** | Alexander James Wright | Individual | Clean US Passport & Utility Bill, 0 screening hits | `APPROVE_SDD` (Low Risk - 12/100) |
-| **KYC-2026-0892** | Elena Rostova | Individual | Former Deputy Minister of Energy (PEP) + Adverse Media | `APPROVE_EDD` (High Risk - 76/100) |
-| **KYC-2026-0893** | Tariq Al-Mansoor | Individual | Direct match on OFAC SDN sanctions list + expired ID | `REJECT_PROHIBITED` (Critical - 98/100) |
-| **KYC-2026-0894** | Quantum Dynamics Technologies Ltd | Corporate | Multi-director structure, 2 UBOs, PSC filing inquiry | `REQUEST_RFI` (Medium Risk - 48/100) |
+| **KYC-2026-0891** | Alexander James Wright | Retail Individual | Completed Archive | Low (12/100) — Approved SDD |
+| **KYC-2026-0894** | Quantum Dynamics Technologies | Small Tech (SMB) | L1 Checker (4-Eyes) | Medium (48/100) — Multi-Director & UBO |
+| **KYC-2026-0895** | Apex Nordic Seafood AS | Small SMB | L1 Checker (4-Eyes) | Low (22/100) — Cross-border EU Fishing |
+| **KYC-2026-0896** | Veritas Logistics Global | Medium Corp | L2 Senior (6-Eyes) | High (68/100) — Dual-use Maritime Shipping |
+| **KYC-2026-0897** | Nexus Pay Financial Ltd | Medium FinTech | L2 Senior (6-Eyes) | High (72/100) — PSP Third-Party Processing |
+| **KYC-2026-0898** | Aethelgard Heavy Industries | Large Enterprise | Maker Queue | High (64/100) — In-Flight Self-Check |
+| **KYC-2026-0899** | Atlas Trans-Oceanic Energy | XL Conglomerate | MLRO Escalation | High (74/100) — $250M/mo Wire Threshold |
+| **KYC-2026-0892** | Elena Rostova | Individual PEP | MLRO Escalation | High (76/100) — PEP Ministerial Linkage |
+| **KYC-2026-0893** | Tariq Al-Mansoor | Individual Sanctions | MLRO Escalation | Critical (98/100) — OFAC SDN Match |
 
 ---
 
 ## 📋 REST API Reference
 
-- `GET /api/cases`: Retrieve all onboarding cases and risk summaries.
-- `POST /api/cases`: Create a new individual or corporate KYC/KYB case.
-- `GET /api/cases/{id}`: Fetch complete case dossier, extracted data, risk score, and Maker memo.
-- `POST /api/cases/{id}/documents`: Ingest a new document (text or PDF) and run instant analysis.
-- `POST /api/cases/{id}/analyze`: Trigger / Re-run the KYC Maker AI Agent on a case.
-- `POST /api/cases/{id}/decision`: Submit Checker sign-off (`APPROVED_SDD`, `APPROVED_EDD`, `RFI_REQUESTED`, `REJECTED`).
-- `POST /api/cases/reset`: Restore the initial demo presets.
-- `GET /api/stats`: Compliance metrics (Pending review, High risk alerts, Approval counts).
+- `GET /api/stats`: Retrieve live queue counts (`maker_queue_count`, `l1_checker_queue_count`, `l2_checker_queue_count`, `mlro_queue_count`, `monitoring_queue_count`, `completed_archive_count`).
+- `GET /api/cases`: List all active KYC cases with queue locations and risk ratings.
+- `POST /api/cases`: Create a new individual or corporate KYC case.
+- `GET /api/cases/{id}`: Fetch complete case dossier, extracted data, risk score, memo, and queue history.
+- `POST /api/cases/{id}/documents`: Ingest a new credential document and trigger instant extraction.
+- `POST /api/cases/{id}/analyze`: Re-run the KYC Maker AI Agent pipeline.
+- `POST /api/cases/{id}/submit-to-checker`: Transition case from Maker Queue to L1 Checker Queue.
+- `POST /api/cases/{id}/decision`: Submit L1 or L2 Checker review (`APPROVED_SDD`, `APPROVED_EDD`, `PENDING_L2_CHECKER`, `RETURNED_TO_MAKER`, `RETURNED_TO_L1`, `ESCALATED_MLRO`).
+- `POST /api/cases/{id}/mlro-decision`: Record MLRO executive determination (`APPROVED`, `RETURNED`, `REJECTED`).
+- `POST /api/cases/{id}/periodic-review`: Trigger periodic re-KYC refresh cycle.
+- `POST /api/cases/reset`: Restore default demo distribution across queues.
 
 ---
 
-## 🛡️ Running Automated Tests
+## 🛡️ Automated Tests
 
 ```bash
 .venv/bin/pytest -v
 ```
+
+8/8 comprehensive automated unit and integration tests passing.
