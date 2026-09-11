@@ -373,17 +373,15 @@ export default function CaseDetail({
             <ArrowLeft size={15} /> Back to {activeQueue && activeQueue !== 'ALL' ? getQueueBadge(activeQueue).label : 'All Cases'}
           </button>
 
-          {/* Quick Jump to All Queues */}
-          {activeQueue !== 'ALL' && (
-            <button
-              onClick={() => onBack('ALL')}
-              className="btn btn-secondary btn-sm"
-              style={{ color: 'var(--text-muted)' }}
-              title="Return to All Queues"
-            >
-              All Queues
-            </button>
-          )}
+          {/* Quick Jump to All Queues (Main Queue) - Always accessible */}
+          <button
+            onClick={() => onBack('ALL')}
+            className="btn btn-secondary btn-sm"
+            style={{ color: 'var(--text-muted)' }}
+            title="Return to Main Queue (All Cases)"
+          >
+            All Queues
+          </button>
 
           {/* Quick jump to case's internal queue if different */}
           {activeQueue !== caseData.current_queue && (

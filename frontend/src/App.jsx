@@ -31,13 +31,12 @@ export default function App() {
         setCases(casesData);
         setStats(statsData);
 
-        // If a case is selected, keep its reference updated
-        if (selectedCase) {
-          const updatedSelected = casesData.find((c) => c.id === selectedCase.id);
-          if (updatedSelected) {
-            setSelectedCase(updatedSelected);
-          }
-        }
+        // If a case is selected, keep its reference updated without reviving a closed case
+        setSelectedCase((prevSelected) => {
+          if (!prevSelected) return null;
+          const updatedSelected = casesData.find((c) => c.id === prevSelected.id);
+          return updatedSelected || null;
+        });
       }
     } catch (err) {
       console.error('Failed to fetch cases:', err);
@@ -55,15 +54,15 @@ export default function App() {
   };
 
   const handleBackToList = (targetQueue = null) => {
-    if (targetQueue) {
-      setSelectedQueue(targetQueue);
-    } else if (selectedCase?.current_queue) {
-      setSelectedQueue(selectedCase.current_queue);
-    }
+    const queueToSet = targetQueue || selectedCase?.current_queue || 'ALL';
+    setSelectedQueue(queueToSet);
+
     if (selectedCase?.id) {
       setHighlightedCaseId(selectedCase.id);
       setTimeout(() => setHighlightedCaseId(null), 4500);
     }
+
+    // Explicitly unmount case detail and return to list
     setSelectedCase(null);
     fetchData();
   };
