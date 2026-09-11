@@ -649,38 +649,66 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
       {activeTab === 'MONITORING' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div className="glass-panel" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>
-                  Step 12: Ongoing Monitoring & Periodic Review (re-KYC)
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Step 12: Continuous Surveillance & Automated PR/CR Cadence
+                  <span className="tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8', borderColor: '#38bdf8' }}>
+                    Auto-Cadence Active
+                  </span>
                 </h3>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Continuous surveillance feeds back into Step 1 upon trigger events
+                  Continuous surveillance engine evaluates risk rating sub-tiers and auto-triggers periodic re-KYC refresh cycles
                 </span>
               </div>
               <button
                 onClick={handleTriggerPeriodicReview}
                 disabled={isPeriodicRunning}
                 className="btn btn-primary btn-sm"
+                style={{ background: '#0ea5e9', borderColor: '#0284c7', fontWeight: '700' }}
               >
                 <RefreshCw size={14} className={isPeriodicRunning ? 'animate-spin' : ''} />
-                Run Re-KYC Refresh
+                {isPeriodicRunning ? 'Refreshing Record...' : '⚡ Auto-Trigger PR/CR Refresh'}
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-              <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Next Scheduled Review</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              {/* Risk Sub-Tier */}
+              <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Risk Sub-Tier & Policy</div>
                 <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--accent-secondary)', marginTop: '0.25rem' }}>
-                  {caseData.next_review_date || 'Scheduled'}
+                  {caseData.risk_assessment?.risk_sub_tier ? caseData.risk_assessment.risk_sub_tier.replace('_', ' ') : caseData.risk_assessment?.risk_tier || 'STANDARD'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  Cadence: Every {caseData.review_cycle_months || 12} Months
+                  CRR Score: {caseData.risk_assessment ? Math.round(caseData.risk_assessment.overall_score) : 0}/100
                 </div>
               </div>
 
-              <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Transaction Monitoring</div>
+              {/* Cadence */}
+              <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Automated Review Cadence</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#10b981', marginTop: '0.25rem' }}>
+                  {caseData.review_cycle_months || 12} Months ({((caseData.review_cycle_months || 12) / 12).toFixed(0)} yr)
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  {caseData.risk_assessment?.pr_cr_trigger_rule || 'Risk-based periodic trigger'}
+                </div>
+              </div>
+
+              {/* Next Scheduled Review */}
+              <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Next Trigger Due Date</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#60a5fa', marginTop: '0.25rem' }}>
+                  {caseData.next_review_date || 'Scheduled'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Auto-moves to Maker Queue upon date
+                </div>
+              </div>
+
+              {/* Transaction Monitoring */}
+              <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Transaction Surveillance</div>
                 <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--color-success)', marginTop: '0.25rem' }}>
                   Active & Normal
                 </div>
@@ -688,6 +716,12 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
                   Threshold: {caseData.cdd_profile?.expected_monthly_turnover || 'Standard'}
                 </div>
               </div>
+            </div>
+
+            {/* Policy Reference Bar */}
+            <div style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.25)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              <span><strong>Auto PR/CR Matrix:</strong> High Risk (High-High, High-Med, High-Low) = <strong>1 Year</strong> • Medium Risk = <strong>2–3 Years</strong> • Low Risk = <strong>5 Years</strong></span>
+              <span className="tag" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', borderColor: '#34d399' }}>Surveillance Online</span>
             </div>
           </div>
 

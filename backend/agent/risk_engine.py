@@ -158,37 +158,71 @@ class RiskEngine:
         elif pep_matches:
             overall_score = max(overall_score, 70.0)
 
-        # Assign Risk Tier & Periodic Review Cadence
+        # Assign Risk Tier, Sub-Tier & Automated Periodic Review (PR/CR) Cadence
+        # Requested Policy:
+        # - High Risks (High-High, High-Medium, High-Low, Critical) -> Auto-trigger in 1 Year (12 months)
+        # - Medium Risks (Medium-High, Medium-Low) -> Auto-trigger in 2 to 3 Years (24 to 36 months)
+        # - Low Risk -> Auto-trigger in 5 Years (60 months)
         if overall_score >= 90.0:
             tier = RiskTier.CRITICAL
+            sub_tier = "CRITICAL / HIGH_HIGH"
             dd = "Prohibited Onboarding / Mandatory Compliance Escalation"
-            review_cycle_months = 3
-        elif overall_score >= 70.0:
-            tier = RiskTier.HIGH
-            dd = "Enhanced Due Diligence (EDD) Required"
             review_cycle_months = 12
+            pr_cr_rule = "1 Year (12 Months) - Critical / High-High PR/CR Cadence"
+        elif overall_score >= 80.0:
+            tier = RiskTier.HIGH
+            sub_tier = "HIGH_HIGH"
+            dd = "Enhanced Due Diligence (EDD) Required - High-High Risk"
+            review_cycle_months = 12
+            pr_cr_rule = "1 Year (12 Months) - High-High Risk PR/CR Cadence"
+        elif overall_score >= 74.0:
+            tier = RiskTier.HIGH
+            sub_tier = "HIGH_MEDIUM"
+            dd = "Enhanced Due Diligence (EDD) Required - High-Medium Risk"
+            review_cycle_months = 12
+            pr_cr_rule = "1 Year (12 Months) - High-Medium Risk PR/CR Cadence"
+        elif overall_score >= 65.0:
+            tier = RiskTier.HIGH
+            sub_tier = "HIGH_LOW"
+            dd = "Enhanced Due Diligence (EDD) Required - High-Low Risk"
+            review_cycle_months = 12
+            pr_cr_rule = "1 Year (12 Months) - High-Low Risk PR/CR Cadence"
+        elif overall_score >= 48.0:
+            tier = RiskTier.MEDIUM
+            sub_tier = "MEDIUM_HIGH"
+            dd = "Standard Due Diligence (SDD) - Heightened Surveillance (Medium-High)"
+            review_cycle_months = 24
+            pr_cr_rule = "2 Years (24 Months) - Medium-High Risk PR/CR Cadence"
         elif overall_score >= 30.0:
             tier = RiskTier.MEDIUM
-            dd = "Standard Due Diligence (SDD) with Active Monitoring"
-            review_cycle_months = 24
+            sub_tier = "MEDIUM_LOW"
+            dd = "Standard Due Diligence (SDD) with Active Monitoring (Medium-Low)"
+            review_cycle_months = 36
+            pr_cr_rule = "3 Years (36 Months) - Medium-Low Risk PR/CR Cadence"
         else:
             tier = RiskTier.LOW
+            sub_tier = "LOW"
             dd = "Standard Due Diligence (SDD) - Low Risk"
-            review_cycle_months = 36
+            review_cycle_months = 60
+            pr_cr_rule = "5 Years (60 Months) - Low Risk PR/CR Cadence"
 
-        # Calculate suggested next review date
+        # Calculate suggested next review date (365.25 days per year)
         from datetime import datetime, timedelta
-        next_date = (datetime.utcnow() + timedelta(days=review_cycle_months * 30)).strftime("%Y-%m-%d")
+        days = int((review_cycle_months / 12) * 365.25)
+        next_date = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
 
+        cadence_years = review_cycle_months // 12
         summary_text = (
-            f"Overall Customer Risk Rating is {tier.value} ({round(overall_score, 1)}/100). "
+            f"Overall Customer Risk Rating is {tier.value} ({round(overall_score, 1)}/100) [Sub-Tier: {sub_tier}]. "
             f"{'Critical watchlist hits require prohibition.' if tier == RiskTier.CRITICAL else 'Enhanced Due Diligence required prior to account activation.' if tier == RiskTier.HIGH else 'Clean risk profile suitable for standard onboarding.'} "
-            f"Mandatory Periodic Review cycle: Every {review_cycle_months} months."
+            f"Automated PR/CR Cadence: Every {review_cycle_months} months ({cadence_years} year{'s' if cadence_years > 1 else ''})."
         )
 
         return RiskAssessment(
             overall_score=round(overall_score, 1),
             risk_tier=tier,
+            risk_sub_tier=sub_tier,
+            pr_cr_trigger_rule=pr_cr_rule,
             recommended_due_diligence=dd,
             recommended_review_cycle_months=review_cycle_months,
             suggested_next_review_date=next_date,

@@ -321,8 +321,10 @@ class RiskAssessment(BaseModel):
     """Step 5B: Multi-Factor Risk Assessment (Maker Analysis)."""
     overall_score: float
     risk_tier: RiskTier
+    risk_sub_tier: Optional[str] = "LOW"  # "HIGH_HIGH", "HIGH_MEDIUM", "HIGH_LOW", "MEDIUM_HIGH", "MEDIUM_LOW", "LOW"
+    pr_cr_trigger_rule: Optional[str] = "5 Years (60 Months) - Low Risk PR/CR Cadence"
     recommended_due_diligence: str
-    recommended_review_cycle_months: int = 12
+    recommended_review_cycle_months: int = 60
     suggested_next_review_date: Optional[str] = None
     customer_risk: float = 20.0
     product_risk: float = 15.0

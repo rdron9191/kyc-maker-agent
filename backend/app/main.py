@@ -241,7 +241,7 @@ def disposition_alert(case_id: str, payload: AlertDispositionRequest):
 
 @app.post("/api/cases/{case_id}/periodic-review", response_model=KYCCase)
 def trigger_periodic_review(case_id: str):
-    """Step 1 & 12: Trigger Periodic Review (re-KYC) cycle."""
+    """Step 1 & 12: Trigger Periodic Review (re-KYC) cycle based on risk policy."""
     case = db.get_case(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -249,8 +249,139 @@ def trigger_periodic_review(case_id: str):
     case.trigger_type = KYCTriggerType.PERIODIC_RE_KYC
     case.trigger_source = KYCTriggerSource.SYSTEM_ALERT
     analyzed_case = agent.process_case(case, review_type="PERIODIC_RE_KYC")
+
+    # Add explicit audit event
+    cadence = analyzed_case.risk_assessment.recommended_review_cycle_months if analyzed_case.risk_assessment else 12
+    sub_tier = analyzed_case.risk_assessment.risk_sub_tier if analyzed_case.risk_assessment else "STANDARD"
+    analyzed_case.audit_trail.append(
+        AuditEvent(
+            stage=WorkflowStage.STAGE_12_ONGOING_MONITORING,
+            actor="AUTO_SURVEILLANCE_ENGINE",
+            action="PR_CR_REFRESH_TRIGGERED",
+            details=f"Automated PR/CR Surveillance Engine triggered delta refresh for {analyzed_case.primary_name}. Risk Policy: {sub_tier} triggered cadence of {cadence} months ({cadence // 12} yr). Next review scheduled for {analyzed_case.next_review_date}.",
+        )
+    )
     db.save_case(analyzed_case)
     return analyzed_case
+
+
+@app.post("/api/periodic-review/auto-trigger")
+def auto_trigger_periodic_reviews(
+    case_id: Optional[str] = None,
+    force_all: bool = False,
+    simulate_tier: Optional[str] = None
+):
+    """
+    Automated Continuous & Periodic Review (PR/CR) Surveillance Engine.
+    Evaluates customer risk ratings against cadence policy:
+    - High Risks (High-High, High-Medium, High-Low, Critical): 1 Year (12 months)
+    - Medium Risks (Medium-High, Medium-Low): 2 to 3 Years (24 to 36 months)
+    - Low Risk: 5 Years (60 months)
+    """
+    now_str = datetime.utcnow().strftime("%Y-%m-%d")
+    all_cases = db.list_cases()
+    triggered_cases = []
+
+    for c in all_cases:
+        should_trigger = False
+        reason = ""
+
+        if case_id and c.id == case_id:
+            should_trigger = True
+            reason = f"Targeted execution on Case #{c.case_number}"
+        elif force_all:
+            should_trigger = True
+            reason = "Global automated surveillance scan"
+        elif simulate_tier and c.risk_assessment and (
+            simulate_tier.upper() in c.risk_assessment.risk_tier.value.upper() or
+            (c.risk_assessment.risk_sub_tier and simulate_tier.upper() in c.risk_assessment.risk_sub_tier.upper())
+        ):
+            should_trigger = True
+            reason = f"Simulated {simulate_tier.upper()} risk cadence trigger"
+        elif c.next_review_date and c.next_review_date <= now_str and c.current_queue != ComplianceQueue.MAKER_QUEUE:
+            should_trigger = True
+            reason = f"Scheduled cadence date reached ({c.next_review_date})"
+        elif c.current_queue == ComplianceQueue.PERIODIC_MONITORING_QUEUE:
+            should_trigger = True
+            reason = "Case located in Periodic Monitoring Queue awaiting refresh"
+
+        if should_trigger:
+            c.trigger_type = KYCTriggerType.PERIODIC_RE_KYC
+            c.trigger_source = KYCTriggerSource.SYSTEM_ALERT
+            refreshed = agent.process_case(c, review_type="PERIODIC_RE_KYC")
+            
+            cadence = refreshed.risk_assessment.recommended_review_cycle_months if refreshed.risk_assessment else 12
+            sub_tier = refreshed.risk_assessment.risk_sub_tier if refreshed.risk_assessment else "STANDARD"
+            refreshed.audit_trail.append(
+                AuditEvent(
+                    stage=WorkflowStage.STAGE_12_ONGOING_MONITORING,
+                    actor="AUTO_SURVEILLANCE_ENGINE",
+                    action="AUTOMATIC_PR_CR_TRIGGERED",
+                    details=f"Automated PR/CR Surveillance Engine triggered delta refresh. Reason: {reason}. Policy: {sub_tier} requires {cadence} months cadence ({cadence // 12} yr). Next review: {refreshed.next_review_date}.",
+                )
+            )
+            db.save_case(refreshed)
+            triggered_cases.append({
+                "id": refreshed.id,
+                "case_number": refreshed.case_number,
+                "primary_name": refreshed.primary_name,
+                "risk_tier": refreshed.risk_assessment.risk_tier.value if refreshed.risk_assessment else "N/A",
+                "risk_sub_tier": refreshed.risk_assessment.risk_sub_tier if refreshed.risk_assessment else "N/A",
+                "review_cycle_months": refreshed.review_cycle_months,
+                "next_review_date": refreshed.next_review_date,
+                "current_queue": refreshed.current_queue.value,
+                "status": refreshed.status.value,
+                "reason": reason,
+            })
+
+    return {
+        "status": "SUCCESS",
+        "triggered_count": len(triggered_cases),
+        "triggered_cases": triggered_cases,
+        "policy_matrix": {
+            "high_risks": "1 Year (12 months) - High-High, High-Medium, High-Low, Critical",
+            "medium_risks": "2 to 3 Years (24 to 36 months) - Medium-High, Medium-Low",
+            "low_risk": "5 Years (60 months) - Standard Low Risk SDD",
+        },
+        "message": f"Successfully triggered {len(triggered_cases)} automated PR/CR review(s)."
+    }
+
+
+@app.get("/api/periodic-review/schedule")
+def get_periodic_review_schedule():
+    """Retrieve the automated risk-based PR/CR cadence schedule policy."""
+    return {
+        "policy_name": "Automated Risk-Based Periodic Review (PR/CR) Policy",
+        "rules": [
+            {
+                "tier": "HIGH",
+                "sub_tiers": ["HIGH_HIGH", "HIGH_MEDIUM", "HIGH_LOW"],
+                "score_range": "65 - 100",
+                "cadence_years": 1,
+                "cadence_months": 12,
+                "action": "Mandatory Annual Enhanced Due Diligence (EDD) Refresh",
+                "description": "High risks like High-High, High-Medium, High-Low are refreshed automatically every 1 year.",
+            },
+            {
+                "tier": "MEDIUM",
+                "sub_tiers": ["MEDIUM_HIGH", "MEDIUM_LOW"],
+                "score_range": "30 - 64",
+                "cadence_years": "2 - 3",
+                "cadence_months": "24 - 36",
+                "action": "Standard Due Diligence (SDD) Active Monitoring Refresh",
+                "description": "Medium risks are refreshed once in 2 to 3 years (Medium-High: 2 yrs / 24 mo; Medium-Low: 3 yrs / 36 mo).",
+            },
+            {
+                "tier": "LOW",
+                "sub_tiers": ["LOW"],
+                "score_range": "0 - 29",
+                "cadence_years": 5,
+                "cadence_months": 60,
+                "action": "Standard Low-Risk SDD Maintenance Refresh",
+                "description": "Low risks are refreshed automatically every 5 years (60 months).",
+            },
+        ]
+    }
 
 
 @app.post("/api/cases/{case_id}/sync-external-intelligence", response_model=KYCCase)

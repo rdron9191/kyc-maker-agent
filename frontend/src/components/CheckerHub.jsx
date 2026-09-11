@@ -266,11 +266,10 @@ export default function CheckerHub({ caseData, onDecisionSubmit, onMLROSubmit, i
                 value={reviewCycleMonths}
                 onChange={(e) => setReviewCycleMonths(e.target.value)}
               >
-                <option value="6">6 Months (Continuous / Heightened Risk)</option>
-                <option value="12">12 Months (High Risk EDD / Annual)</option>
-                <option value="24">24 Months (Medium Risk / Biennial)</option>
-                <option value="36">36 Months (Low Risk / Triennial)</option>
-                <option value="60">60 Months (Simplified SDD)</option>
+                <option value="12">12 Months (1 Year - High Risk: High-High, High-Med, High-Low)</option>
+                <option value="24">24 Months (2 Years - Medium-High Risk)</option>
+                <option value="36">36 Months (3 Years - Medium-Low Risk)</option>
+                <option value="60">60 Months (5 Years - Low Risk SDD)</option>
               </select>
             </div>
           </div>
@@ -373,9 +372,10 @@ export default function CheckerHub({ caseData, onDecisionSubmit, onMLROSubmit, i
                 value={reviewCycleMonths}
                 onChange={(e) => setReviewCycleMonths(e.target.value)}
               >
-                <option value="6">6 Months (Continuous / Heightened Risk)</option>
-                <option value="12">12 Months (High Risk EDD / Annual)</option>
-                <option value="24">24 Months (Medium Risk / Biennial)</option>
+                <option value="12">12 Months (1 Year - High Risk: High-High, High-Med, High-Low)</option>
+                <option value="24">24 Months (2 Years - Medium-High Risk)</option>
+                <option value="36">36 Months (3 Years - Medium-Low Risk)</option>
+                <option value="60">60 Months (5 Years - Low Risk SDD)</option>
               </select>
             </div>
           </div>

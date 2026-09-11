@@ -103,32 +103,50 @@ class CaseDatabase:
 
             # Assign realistic operational queues & reviews for demo cases
             c_num = case.case_number
-            if c_num == "KYC-2026-0891":  # Alexander Wright
+            if c_num == "KYC-2026-0891":  # Alexander Wright (Low Risk)
                 case.status = CaseStatus.APPROVED_SDD
                 case.current_queue = ComplianceQueue.COMPLETED_ARCHIVE
                 case.current_stage = WorkflowStage.STAGE_10_CASE_CLOSURE
+                case.review_cycle_months = 60
+                case.next_review_date = (datetime.utcnow() + timedelta(days=60 * 30)).strftime("%Y-%m-%d")
                 case.checker_review = CheckerReview(
                     checker_level="L1",
                     checker_name="Sarah Jenkins (L1 Checker)",
                     decision=CaseStatus.APPROVED_SDD,
-                    comments="Clean retail onboarding credentials verified. Identity confidence 99%. Approved SDD.",
-                    review_cycle_months=36,
-                    next_review_date=(datetime.utcnow() + timedelta(days=36 * 30)).strftime("%Y-%m-%d"),
+                    comments="Clean retail onboarding credentials verified. Identity confidence 99%. Approved SDD. Low risk cadence: 5 years (60 months).",
+                    review_cycle_months=60,
+                    next_review_date=case.next_review_date,
                 )
                 case.l1_review = case.checker_review
-            elif c_num in ["KYC-2026-0894", "KYC-2026-0895"]:  # Quantum Dynamics & Apex Nordic
+            elif c_num == "KYC-2026-0895":  # Apex Nordic Seafood AS (In Periodic Monitoring Queue - Cadence Reached)
+                case.status = CaseStatus.APPROVED_SDD
+                case.current_queue = ComplianceQueue.PERIODIC_MONITORING_QUEUE
+                case.current_stage = WorkflowStage.STAGE_12_ONGOING_MONITORING
+                case.review_cycle_months = 60
+                case.next_review_date = datetime.utcnow().strftime("%Y-%m-%d")  # Due for auto-trigger today
+                case.checker_review = CheckerReview(
+                    checker_level="L1",
+                    checker_name="Sarah Jenkins (L1 Checker)",
+                    decision=CaseStatus.APPROVED_SDD,
+                    comments="Standard Due Diligence verified. Periodic monitoring surveillance active.",
+                    review_cycle_months=60,
+                    next_review_date=case.next_review_date,
+                )
+                case.l1_review = case.checker_review
+            elif c_num == "KYC-2026-0894":  # Quantum Dynamics Technologies (Medium Risk)
                 case.status = CaseStatus.PENDING_L1_CHECKER
                 case.current_queue = ComplianceQueue.L1_CHECKER_QUEUE
                 case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
-            elif c_num in ["KYC-2026-0896", "KYC-2026-0897"]:  # Veritas Logistics & Nexus Pay
+            elif c_num in ["KYC-2026-0896", "KYC-2026-0897"]:  # Veritas Logistics & Nexus Pay (High Risks)
                 case.status = CaseStatus.PENDING_L2_CHECKER
                 case.current_queue = ComplianceQueue.L2_CHECKER_QUEUE
                 case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+                case.review_cycle_months = 12
                 case.l1_review = CheckerReview(
                     checker_level="L1",
                     checker_name="Liam O'Connor (L1 Checker)",
                     decision=CaseStatus.PENDING_L2_CHECKER,
-                    comments="L1 4-eyes review completed. Escalating to L2 Senior Checker for 6-eyes sign-off due to PEP linkage / high-velocity wire activity.",
+                    comments="L1 4-eyes review completed. Escalating to L2 Senior Checker for 6-eyes sign-off due to PEP linkage / high-velocity wire activity. High-risk annual PR/CR review scheduled.",
                     escalation_reason="6-Eyes senior oversight required under Global KYC policy",
                     review_cycle_months=12,
                 )

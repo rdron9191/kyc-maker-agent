@@ -41,6 +41,26 @@ export default function CaseList({
   const setSelectedQueue = onSelectQueue || setInternalQueue;
   const [filterSize, setFilterSize] = useState('ALL');
   const [showFlowGuide, setShowFlowGuide] = useState(false);
+  const [isTriggeringAutoPR, setIsTriggeringAutoPR] = useState(false);
+  const [autoPRFeedback, setAutoPRFeedback] = useState('');
+
+  const handleRunAutoPR = async (force = true) => {
+    setIsTriggeringAutoPR(true);
+    try {
+      const res = await fetch(`/api/periodic-review/auto-trigger?force_all=${force}`, { method: 'POST' });
+      if (!res.ok) throw new Error('Auto PR/CR trigger failed');
+      const data = await res.json();
+      setAutoPRFeedback(`Surveillance complete: ${data.triggered_count} case(s) refreshed into Maker Queue based on 1/2-3/5-yr risk cadence!`);
+      setTimeout(() => setAutoPRFeedback(''), 5000);
+      if (data.triggered_count > 0) {
+        setTimeout(() => setSelectedQueue('MAKER_QUEUE'), 1200);
+      }
+    } catch (err) {
+      alert(`PR/CR Trigger Error: ${err.message}`);
+    } finally {
+      setIsTriggeringAutoPR(false);
+    }
+  };
 
   const nowStr = new Date().toISOString().split('T')[0];
 
@@ -424,6 +444,77 @@ export default function CaseList({
           </button>
         </div>
       </div>
+
+      {/* Automated PR/CR Cadence Policy Banner */}
+      {selectedQueue === 'PERIODIC_MONITORING_QUEUE' && (
+        <div
+          className="glass-panel"
+          style={{
+            padding: '1.25rem 1.5rem',
+            background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(99, 102, 241, 0.12))',
+            border: '1px solid rgba(14, 165, 233, 0.35)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ background: 'rgba(14, 165, 233, 0.2)', padding: '0.5rem', borderRadius: 'var(--radius-md)', color: '#38bdf8' }}>
+                <Calendar size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: '1rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  Automated Risk-Based PR/CR Continuous Surveillance Matrix
+                  <span className="tag" style={{ background: 'rgba(14, 165, 233, 0.2)', color: '#38bdf8', borderColor: '#38bdf8' }}>
+                    Policy Active
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Continuous surveillance engine evaluates customer risk ratings and automatically triggers periodic re-KYC refresh cycles.
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleRunAutoPR(true)}
+              disabled={isTriggeringAutoPR}
+              className="btn btn-primary btn-sm"
+              style={{ background: '#0ea5e9', borderColor: '#0284c7', fontWeight: '700' }}
+            >
+              <RefreshCw size={14} className={isTriggeringAutoPR ? 'animate-spin' : ''} />
+              {isTriggeringAutoPR ? 'Scanning & Refreshing...' : '⚡ Trigger Auto PR/CR Surveillance'}
+            </button>
+          </div>
+
+          {autoPRFeedback && (
+            <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', color: '#34d399', fontSize: '0.8rem', fontWeight: '600' }}>
+              ✓ {autoPRFeedback}
+            </div>
+          )}
+
+          {/* Matrix Breakdown Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: '800', textTransform: 'uppercase' }}>High Risks (High-High, High-Med, High-Low)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f87171', marginTop: '0.2rem' }}>1 Year (12 Months)</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Mandatory annual Enhanced Due Diligence (EDD) refresh</div>
+            </div>
+
+            <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: '800', textTransform: 'uppercase' }}>Medium Risk (Medium-High / Low)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fbbf24', marginTop: '0.2rem' }}>2 to 3 Years (24–36 mo)</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Standard SDD with active monitoring</div>
+            </div>
+
+            <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '800', textTransform: 'uppercase' }}>Low Risk (Standard Retail)</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#34d399', marginTop: '0.2rem' }}>5 Years (60 Months)</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Simplified Due Diligence maintenance cycle</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cases List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>

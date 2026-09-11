@@ -125,6 +125,23 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
+## ⏱️ Automated Periodic Review (PR) & Continuous Review (CR) Matrix
+
+The system implements automated risk-calibrated review cadences with continuous surveillance triggering:
+
+| Risk Tier | Risk Sub-Tier | Score Range | Auto-Cadence | Review Type & SLA |
+|---|---|---|---|---|
+| **High / Critical** | `HIGH_HIGH` | 80 – 100 | **1 Year** (12 mo) | Mandatory Annual Enhanced Due Diligence (EDD) Refresh |
+| **High** | `HIGH_MEDIUM` | 74 – 79 | **1 Year** (12 mo) | Mandatory Annual Enhanced Due Diligence (EDD) Refresh |
+| **High** | `HIGH_LOW` | 65 – 73 | **1 Year** (12 mo) | Mandatory Annual Enhanced Due Diligence (EDD) Refresh |
+| **Medium** | `MEDIUM_HIGH` | 48 – 64 | **2 Years** (24 mo) | Standard SDD with Active Monitoring |
+| **Medium** | `MEDIUM_LOW` | 30 – 47 | **3 Years** (36 mo) | Standard SDD with Active Monitoring |
+| **Low** | `LOW` | 0 – 29 | **5 Years** (60 mo) | Simplified Due Diligence (SDD) Maintenance Cycle |
+
+- **Continuous Auto-Surveillance Trigger**: The background engine continuously monitors scheduled review dates. When a client reaches their 1-year, 2-to-3-year, or 5-year threshold, the record is automatically moved into the Maker Queue, generating a re-screening scan, updated D&B PAYDEX pull, and delta compliance memo.
+
+---
+
 ## 📋 REST API Reference
 
 - `GET /api/stats`: Retrieve live queue counts (`maker_queue_count`, `l1_checker_queue_count`, `l2_checker_queue_count`, `mlro_queue_count`, `monitoring_queue_count`, `completed_archive_count`).
@@ -134,10 +151,12 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 - `POST /api/cases/{id}/documents`: Ingest a new credential document and trigger instant extraction.
 - `POST /api/cases/{id}/analyze`: Re-run the KYC Maker AI Agent pipeline.
 - `POST /api/cases/{id}/sync-external-intelligence`: On-demand live synchronization with Dun & Bradstreet, LexisNexis Bridger Insight, and GLEIF.
+- `POST /api/periodic-review/auto-trigger`: Automated surveillance scan triggering PR/CR for cases reaching their 1-year, 2-3 year, or 5-year risk thresholds.
+- `GET /api/periodic-review/schedule`: Fetch the active risk-based PR/CR cadence matrix policy.
+- `POST /api/cases/{id}/periodic-review`: Trigger periodic re-KYC refresh cycle for a specific case.
 - `POST /api/cases/{id}/submit-to-checker`: Transition case from Maker Queue to L1 Checker Queue.
 - `POST /api/cases/{id}/decision`: Submit L1 or L2 Checker review (`APPROVED_SDD`, `APPROVED_EDD`, `PENDING_L2_CHECKER`, `RETURNED_TO_MAKER`, `RETURNED_TO_L1`, `ESCALATED_MLRO`).
 - `POST /api/cases/{id}/mlro-decision`: Record MLRO executive determination (`APPROVED`, `RETURNED`, `REJECTED`).
-- `POST /api/cases/{id}/periodic-review`: Trigger periodic re-KYC refresh cycle.
 - `POST /api/cases/reset`: Restore default demo distribution across queues.
 
 ---
@@ -148,4 +167,4 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 .venv/bin/pytest -v
 ```
 
-12/12 comprehensive automated unit and integration tests passing.
+14/14 comprehensive automated unit and integration tests passing.

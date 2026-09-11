@@ -99,11 +99,10 @@ export default function CheckerActions({ caseData, onDecisionSubmit, isSubmittin
                 value={reviewCycleMonths}
                 onChange={(e) => setReviewCycleMonths(e.target.value)}
               >
-                <option value="6">6 Months (Continuous / High Risk EDD)</option>
-                <option value="12">12 Months (Standard High Risk / Annual)</option>
-                <option value="24">24 Months (Medium Risk / Biennial)</option>
-                <option value="36">36 Months (Low Risk / Standard)</option>
-                <option value="60">60 Months (Simplified Due Diligence)</option>
+                <option value="12">12 Months (1 Year - High Risk: High-High, High-Med, High-Low)</option>
+                <option value="24">24 Months (2 Years - Medium-High Risk)</option>
+                <option value="36">36 Months (3 Years - Medium-Low Risk)</option>
+                <option value="60">60 Months (5 Years - Low Risk SDD)</option>
               </select>
             </div>
           </div>

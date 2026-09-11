@@ -11,6 +11,7 @@ from backend.app.models import (
     CaseStatus,
     RiskTier,
     Recommendation,
+    ScreeningMatch,
 )
 from backend.agent.parser import DocumentParser, parse_mrz
 from backend.agent.verifier import CrossDocumentVerifier, names_match
@@ -199,5 +200,49 @@ def test_sync_external_intelligence_api():
     assert synced_data["external_intelligence"] is not None
     assert synced_data["external_intelligence"]["dnb_profile"] is not None
     assert synced_data["external_intelligence"]["lexisnexis_summary"] is not None
+
+
+def test_risk_based_pr_cr_cadence_matrix():
+    """Verify PR/CR cadences: High risks (1 yr/12 mo), Medium (2-3 yrs/24-36 mo), Low (5 yrs/60 mo)."""
+    engine = RiskEngine()
+    screener = ComplianceScreener()
+
+    # 1. High-High Risk (Sanctions hit or score >= 80)
+    high_match = screener.screen("Tariq Al-Mansoor", EntityType.INDIVIDUAL, "SY", [])
+    risk_high = engine.compute_risk("SY", [], [], high_match)
+    assert risk_high.risk_tier == RiskTier.CRITICAL
+    assert risk_high.recommended_review_cycle_months == 12  # 1 Year
+    assert "1 Year" in risk_high.pr_cr_trigger_rule
+
+    # 2. Low Risk (Clean profile, low risk country)
+    risk_low = engine.compute_risk("GB", [], [], [])
+    assert risk_low.risk_tier == RiskTier.LOW
+    assert risk_low.recommended_review_cycle_months == 60  # 5 Years
+    assert "5 Years" in risk_low.pr_cr_trigger_rule
+    assert risk_low.risk_sub_tier == "LOW"
+
+
+def test_auto_trigger_periodic_reviews_api():
+    """Verify POST /api/periodic-review/auto-trigger and GET /api/periodic-review/schedule."""
+    # 1. Schedule endpoint
+    sched_res = client.get("/api/periodic-review/schedule")
+    assert sched_res.status_code == 200
+    rules = sched_res.json()["rules"]
+    assert len(rules) == 3
+    high_rule = next(r for r in rules if r["tier"] == "HIGH")
+    assert high_rule["cadence_years"] == 1
+    assert high_rule["cadence_months"] == 12
+    low_rule = next(r for r in rules if r["tier"] == "LOW")
+    assert low_rule["cadence_years"] == 5
+    assert low_rule["cadence_months"] == 60
+
+    # 2. Auto-trigger surveillance scan
+    trigger_res = client.post("/api/periodic-review/auto-trigger", params={"force_all": True})
+    assert trigger_res.status_code == 200
+    data = trigger_res.json()
+    assert data["status"] == "SUCCESS"
+    assert data["triggered_count"] > 0
+    assert "policy_matrix" in data
+
 
 
