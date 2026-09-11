@@ -9,11 +9,16 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+import copy
 from backend.app.models import (
     KYCCase,
     CaseCreateRequest,
     CaseDecisionRequest,
     AlertDispositionRequest,
+    CaseMoveQueueRequest,
+    CaseAssignRequest,
+    CaseClaimRequest,
+    CaseReleaseRequest,
     DocumentModel,
     DocumentType,
     CaseStatus,
@@ -27,6 +32,7 @@ from backend.app.models import (
     KYCTriggerSource,
     PriorityLevel,
 )
+from backend.app.mock_data import COMPLIANCE_ROSTER
 from backend.app.database import db
 from backend.agent.orchestrator import KYCMakerAgent
 
@@ -59,12 +65,12 @@ def get_stats():
     total = len(cases)
     now_str = datetime.utcnow().strftime("%Y-%m-%d")
 
-    maker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.MAKER_QUEUE or c.status in [CaseStatus.DRAFT, CaseStatus.MAKER_IN_PROGRESS, CaseStatus.RETURNED_TO_MAKER, CaseStatus.ISSUES_IDENTIFIED])
-    l1_checker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.L1_CHECKER_QUEUE or c.status in [CaseStatus.PENDING_CHECKER, CaseStatus.PENDING_L1_CHECKER])
-    l2_checker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.L2_CHECKER_QUEUE or c.status == CaseStatus.PENDING_L2_CHECKER)
-    mlro_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.MLRO_QUEUE or c.status == CaseStatus.ESCALATED_MLRO)
-    monitoring_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.PERIODIC_MONITORING_QUEUE or (c.next_review_date and c.next_review_date <= now_str))
-    completed_archive = sum(1 for c in cases if c.current_queue == ComplianceQueue.COMPLETED_ARCHIVE or c.status in [CaseStatus.APPROVED_SDD, CaseStatus.APPROVED_EDD, CaseStatus.CLOSED, CaseStatus.REJECTED])
+    maker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.MAKER_QUEUE)
+    l1_checker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.L1_CHECKER_QUEUE)
+    l2_checker_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.L2_CHECKER_QUEUE)
+    mlro_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.MLRO_QUEUE)
+    monitoring_queue = sum(1 for c in cases if c.current_queue == ComplianceQueue.PERIODIC_MONITORING_QUEUE)
+    completed_archive = sum(1 for c in cases if c.current_queue == ComplianceQueue.COMPLETED_ARCHIVE)
 
     high_risk_count = sum(1 for c in cases if c.risk_assessment and c.risk_assessment.risk_tier.value in ["HIGH", "CRITICAL"])
     sanction_hits_count = sum(1 for c in cases if any(m.type == "SANCTIONS" for m in c.screening_matches))
@@ -76,6 +82,7 @@ def get_stats():
         "l2_checker_queue_count": l2_checker_queue,
         "mlro_queue_count": mlro_queue,
         "monitoring_queue_count": monitoring_queue,
+        "periodic_monitoring_queue_count": monitoring_queue,
         "completed_archive_count": completed_archive,
         "high_or_critical_risk": high_risk_count,
         "sanctions_hits": sanction_hits_count,
@@ -88,6 +95,192 @@ def get_stats():
         "approved": completed_archive,
         "rejected": sum(1 for c in cases if c.status == CaseStatus.REJECTED),
     }
+
+
+@app.get("/api/compliance-roster")
+def get_compliance_roster():
+    """Returns the institutional compliance personnel directory with active workload counts."""
+    cases = db.list_cases()
+    roster_copy = copy.deepcopy(COMPLIANCE_ROSTER)
+
+    for tier, members in roster_copy.items():
+        for m in members:
+            name = m["name"]
+            if tier == "MAKER":
+                m["workload"] = sum(1 for c in cases if c.assigned_maker == name and c.current_queue == ComplianceQueue.MAKER_QUEUE)
+            elif tier == "L1_CHECKER":
+                m["workload"] = sum(1 for c in cases if c.assigned_checker_l1 == name and c.current_queue == ComplianceQueue.L1_CHECKER_QUEUE)
+            elif tier == "L2_CHECKER":
+                m["workload"] = sum(1 for c in cases if c.assigned_checker_l2 == name and c.current_queue == ComplianceQueue.L2_CHECKER_QUEUE)
+            elif tier == "MLRO":
+                m["workload"] = sum(1 for c in cases if c.assigned_mlro == name and c.current_queue == ComplianceQueue.MLRO_QUEUE)
+
+    return roster_copy
+
+
+@app.post("/api/cases/{case_id}/move-queue", response_model=KYCCase)
+def move_case_queue(case_id: str, payload: CaseMoveQueueRequest):
+    """Explicitly route / transition a case into a designated operational queue."""
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    old_queue = case.current_queue.value
+    case.current_queue = payload.target_queue
+    case.updated_at = datetime.utcnow()
+
+    if payload.target_queue == ComplianceQueue.MAKER_QUEUE:
+        case.current_stage = WorkflowStage.STAGE_4_CDD
+        case.status = CaseStatus.MAKER_IN_PROGRESS
+    elif payload.target_queue == ComplianceQueue.L1_CHECKER_QUEUE:
+        case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+        case.status = CaseStatus.PENDING_L1_CHECKER
+    elif payload.target_queue == ComplianceQueue.L2_CHECKER_QUEUE:
+        case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+        case.status = CaseStatus.PENDING_L2_CHECKER
+    elif payload.target_queue == ComplianceQueue.MLRO_QUEUE:
+        case.current_stage = WorkflowStage.STAGE_11_ESCALATION
+        case.status = CaseStatus.ESCALATED_MLRO
+    elif payload.target_queue == ComplianceQueue.PERIODIC_MONITORING_QUEUE:
+        case.current_stage = WorkflowStage.STAGE_12_ONGOING_MONITORING
+    elif payload.target_queue == ComplianceQueue.COMPLETED_ARCHIVE:
+        case.current_stage = WorkflowStage.STAGE_10_CASE_CLOSURE
+        if case.status not in [CaseStatus.APPROVED_SDD, CaseStatus.APPROVED_EDD, CaseStatus.REJECTED]:
+            case.status = CaseStatus.APPROVED_SDD
+
+    case.audit_trail.append(
+        AuditEvent(
+            actor=payload.actor or "COMPLIANCE_OFFICER",
+            action="QUEUE_TRANSITION",
+            details=f"Record routed from {old_queue} to {payload.target_queue.value}. Rationale: {payload.reason}.",
+        )
+    )
+    db.save_case(case)
+    return case
+
+
+@app.post("/api/cases/{case_id}/assign", response_model=KYCCase)
+def assign_case(case_id: str, payload: CaseAssignRequest):
+    """Assign or reassign a KYC case to an analyst/agent at any governance level."""
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    lvl = payload.level.upper()
+    old_assignee = "None"
+
+    if lvl == "MAKER":
+        old_assignee = case.assigned_maker
+        case.assigned_maker = payload.assignee_name
+    elif lvl in ["L1_CHECKER", "L1"]:
+        old_assignee = case.assigned_checker_l1 or "Unassigned"
+        case.assigned_checker_l1 = payload.assignee_name
+        case.assigned_checker = payload.assignee_name
+    elif lvl in ["L2_CHECKER", "L2"]:
+        old_assignee = case.assigned_checker_l2 or "Unassigned"
+        case.assigned_checker_l2 = payload.assignee_name
+    elif lvl == "MLRO":
+        old_assignee = case.assigned_mlro or "Unassigned"
+        case.assigned_mlro = payload.assignee_name
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid assignment level '{payload.level}'. Expected MAKER, L1_CHECKER, L2_CHECKER, or MLRO.")
+
+    case.updated_at = datetime.utcnow()
+    case.audit_trail.append(
+        AuditEvent(
+            actor=payload.assigned_by,
+            action="CASE_REASSIGNED",
+            details=f"Reassigned {lvl} tier from '{old_assignee}' to '{payload.assignee_name}'. Notes: {payload.notes or 'Routine allocation'}",
+        )
+    )
+    db.save_case(case)
+    return case
+
+
+@app.post("/api/cases/{case_id}/claim", response_model=KYCCase)
+def claim_case(case_id: str, payload: CaseClaimRequest):
+    """Claim a record directly from the active queue (Self-Assignment)."""
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    tier = payload.level
+    if not tier:
+        if case.current_queue == ComplianceQueue.MAKER_QUEUE:
+            tier = "MAKER"
+        elif case.current_queue == ComplianceQueue.L1_CHECKER_QUEUE:
+            tier = "L1_CHECKER"
+        elif case.current_queue == ComplianceQueue.L2_CHECKER_QUEUE:
+            tier = "L2_CHECKER"
+        elif case.current_queue == ComplianceQueue.MLRO_QUEUE:
+            tier = "MLRO"
+        else:
+            tier = "L1_CHECKER"
+
+    tier = tier.upper()
+    if tier == "MAKER":
+        case.assigned_maker = payload.claimant_name
+    elif tier in ["L1_CHECKER", "L1"]:
+        case.assigned_checker_l1 = payload.claimant_name
+        case.assigned_checker = payload.claimant_name
+    elif tier in ["L2_CHECKER", "L2"]:
+        case.assigned_checker_l2 = payload.claimant_name
+    elif tier == "MLRO":
+        case.assigned_mlro = payload.claimant_name
+
+    case.updated_at = datetime.utcnow()
+    case.audit_trail.append(
+        AuditEvent(
+            actor=payload.claimant_name,
+            action="CASE_CLAIMED",
+            details=f"Officer claimed case {case.case_number} in {case.current_queue.value} as {tier} reviewer.",
+        )
+    )
+    db.save_case(case)
+    return case
+
+
+@app.post("/api/cases/{case_id}/release", response_model=KYCCase)
+def release_case(case_id: str, payload: CaseReleaseRequest):
+    """Release a claimed case back to the general unassigned queue pool."""
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    tier = payload.level
+    if not tier:
+        if case.current_queue == ComplianceQueue.MAKER_QUEUE:
+            tier = "MAKER"
+        elif case.current_queue == ComplianceQueue.L1_CHECKER_QUEUE:
+            tier = "L1_CHECKER"
+        elif case.current_queue == ComplianceQueue.L2_CHECKER_QUEUE:
+            tier = "L2_CHECKER"
+        elif case.current_queue == ComplianceQueue.MLRO_QUEUE:
+            tier = "MLRO"
+        else:
+            tier = "L1_CHECKER"
+
+    tier = tier.upper()
+    pool_label = f"Unassigned ({case.current_queue.value} Pool)"
+    if tier == "MAKER":
+        case.assigned_maker = pool_label
+    elif tier in ["L1_CHECKER", "L1"]:
+        case.assigned_checker_l1 = pool_label
+    elif tier in ["L2_CHECKER", "L2"]:
+        case.assigned_checker_l2 = pool_label
+    elif tier == "MLRO":
+        case.assigned_mlro = pool_label
+
+    case.updated_at = datetime.utcnow()
+    case.audit_trail.append(
+        AuditEvent(
+            actor=payload.released_by,
+            action="CASE_RELEASED",
+            details=f"Released case back to {case.current_queue.value} pool. Reason: {payload.reason or 'Unclaimed by officer'}",
+        )
+    )
+    db.save_case(case)
+    return case
 
 
 @app.get("/api/cases", response_model=List[KYCCase])

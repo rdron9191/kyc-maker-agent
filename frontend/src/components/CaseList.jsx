@@ -11,6 +11,7 @@ import {
   Sparkles,
   Building,
   User,
+  UserCheck,
   RotateCcw,
   Calendar,
   RefreshCw,
@@ -28,9 +29,11 @@ export default function CaseList({
   cases = [],
   stats = {},
   selectedQueue: propSelectedQueue,
+  activeOfficer,
   onSelectQueue,
   highlightedCaseId,
   onSelectCase,
+  onClaimCase,
   onNewCase,
   onResetPresets,
   isLoading
@@ -101,6 +104,46 @@ export default function CaseList({
     }
   };
 
+  const getActiveAssignee = (caseItem) => {
+    switch (caseItem.current_queue) {
+      case 'MAKER_QUEUE':
+        return { role: 'Maker', name: caseItem.assigned_maker || 'Unassigned (Maker Pool)' };
+      case 'L1_CHECKER_QUEUE':
+        return { role: 'L1 Checker', name: caseItem.assigned_checker_l1 || caseItem.assigned_checker || 'Unassigned (L1 Pool)' };
+      case 'L2_CHECKER_QUEUE':
+        return { role: 'L2 Senior', name: caseItem.assigned_checker_l2 || 'Unassigned (L2 Pool)' };
+      case 'MLRO_QUEUE':
+        return { role: 'MLRO', name: caseItem.assigned_mlro || 'Arthur Pendelton (Global MLRO)' };
+      case 'PERIODIC_MONITORING_QUEUE':
+        return { role: 'Surveillance', name: 'Auto-Surveillance Engine' };
+      case 'COMPLETED_ARCHIVE':
+        return { role: 'Archive', name: 'Closed Record' };
+      default:
+        return { role: 'Reviewer', name: caseItem.assigned_checker || 'Unassigned' };
+    }
+  };
+
+  const getIsClaimedByMe = (caseItem) => {
+    if (!activeOfficer?.name) return false;
+    const officerFirst = activeOfficer.name.split(' ')[0].toLowerCase();
+    const info = getActiveAssignee(caseItem);
+    return info.name.toLowerCase().includes(officerFirst);
+  };
+
+  const handlePickNext = async () => {
+    if (!filteredCases || filteredCases.length === 0) {
+      alert(`No cases available in ${getQueueInfo(selectedQueue).label}.`);
+      return;
+    }
+    const candidate = filteredCases.find((c) => !getIsClaimedByMe(c)) || filteredCases[0];
+    if (onClaimCase && candidate) {
+      const updated = await onClaimCase(candidate);
+      onSelectCase(updated || candidate);
+    } else if (candidate) {
+      onSelectCase(candidate);
+    }
+  };
+
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
       c.primary_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -112,29 +155,9 @@ export default function CaseList({
 
     if (filterSize !== 'ALL' && c.business_size !== filterSize) return false;
 
-    if (selectedQueue === 'ALL') return true;
-
-    // Queue matching
-    if (c.current_queue === selectedQueue) return true;
-
-    // Fallback matching for cases where current_queue might align by status
-    if (selectedQueue === 'MAKER_QUEUE') {
-      return c.status === 'DRAFT' || c.status === 'MAKER_IN_PROGRESS' || c.status === 'RETURNED_TO_MAKER' || c.status === 'ISSUES_IDENTIFIED';
-    }
-    if (selectedQueue === 'L1_CHECKER_QUEUE') {
-      return c.status === 'PENDING_CHECKER' || c.status === 'PENDING_L1_CHECKER' || c.status === 'RETURNED_TO_L1';
-    }
-    if (selectedQueue === 'L2_CHECKER_QUEUE') {
-      return c.status === 'PENDING_L2_CHECKER';
-    }
-    if (selectedQueue === 'MLRO_QUEUE') {
-      return c.status === 'ESCALATED_MLRO';
-    }
-    if (selectedQueue === 'PERIODIC_MONITORING_QUEUE') {
-      return c.next_review_date && c.next_review_date <= nowStr;
-    }
-    if (selectedQueue === 'COMPLETED_ARCHIVE') {
-      return c.status === 'APPROVED_SDD' || c.status === 'APPROVED_EDD' || c.status === 'CLOSED' || c.status === 'REJECTED';
+    // Strict queue filtering: if a specific queue is selected, only show cases in that queue
+    if (selectedQueue !== 'ALL') {
+      return c.current_queue === selectedQueue;
     }
 
     return true;
@@ -349,6 +372,28 @@ export default function CaseList({
           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Escalations & Sanctions</div>
         </div>
 
+        {/* Periodic Monitoring Queue */}
+        <div
+          onClick={() => setSelectedQueue('PERIODIC_MONITORING_QUEUE')}
+          className="glass-panel"
+          style={{
+            padding: '1rem',
+            cursor: 'pointer',
+            border: selectedQueue === 'PERIODIC_MONITORING_QUEUE' ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+            background: selectedQueue === 'PERIODIC_MONITORING_QUEUE' ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-card)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: selectedQueue === 'PERIODIC_MONITORING_QUEUE' ? 'var(--accent-primary)' : 'var(--text-muted)', fontWeight: '600' }}>MONITORING</span>
+            <Calendar size={16} color={selectedQueue === 'PERIODIC_MONITORING_QUEUE' ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+          </div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '800', marginTop: '0.25rem', fontFamily: 'var(--font-mono)', color: '#f8fafc' }}>
+            {stats.periodic_monitoring_queue_count ?? stats.monitoring_queue_count ?? 1}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Risk Surveillance</div>
+        </div>
+
         {/* Completed Archive */}
         <div
           onClick={() => setSelectedQueue('COMPLETED_ARCHIVE')}
@@ -416,6 +461,17 @@ export default function CaseList({
               </button>
             ))}
           </div>
+
+          {selectedQueue !== 'ALL' && selectedQueue !== 'COMPLETED_ARCHIVE' && (
+            <button
+              onClick={handlePickNext}
+              className="btn btn-primary"
+              style={{ fontWeight: '600', gap: '0.4rem' }}
+              title={`Claim & Pick next case from ${getQueueInfo(selectedQueue).label}`}
+            >
+              <UserCheck size={15} /> Pick Next from Queue
+            </button>
+          )}
 
           <button onClick={onResetPresets} className="btn btn-secondary" title="Reset to standard demonstration cases">
             <RotateCcw size={15} /> Reset Demos
@@ -528,6 +584,10 @@ export default function CaseList({
             const queueInfo = getQueueInfo(c.current_queue);
             const isHighlighted = highlightedCaseId === c.id;
 
+            const assigneeInfo = getActiveAssignee(c);
+            const isClaimedByMe = getIsClaimedByMe(c);
+            const canClaim = c.current_queue !== 'COMPLETED_ARCHIVE' && c.current_queue !== 'PERIODIC_MONITORING_QUEUE';
+
             return (
               <div
                 key={c.id}
@@ -612,6 +672,36 @@ export default function CaseList({
                   <span className={`badge ${statusClass}`}>
                     {c.status.replace(/_/g, ' ')}
                   </span>
+                </div>
+
+                {/* Assignment & Claim Action */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      {assigneeInfo.role} Assignee
+                    </div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: '600', color: isClaimedByMe ? '#34d399' : 'var(--text-primary)' }}>
+                      {assigneeInfo.name}
+                    </div>
+                  </div>
+
+                  {isClaimedByMe ? (
+                    <span className="tag" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: '0.72rem', fontWeight: '600', padding: '0.25rem 0.5rem' }}>
+                      <CheckCircle2 size={12} /> Mine
+                    </span>
+                  ) : canClaim ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClaimCase(c);
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.72rem', gap: '0.3rem' }}
+                      title={`Claim this record as ${activeOfficer?.name}`}
+                    >
+                      <UserCheck size={13} /> Claim
+                    </button>
+                  ) : null}
                 </div>
 
                 {/* Risk Gauge Score */}

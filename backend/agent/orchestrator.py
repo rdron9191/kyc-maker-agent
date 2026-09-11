@@ -224,25 +224,34 @@ class KYCMakerAgent:
             prior_score=prior_score,
         )
 
-        # Transition to Stage 8: Independent Checker Review
-        if case.has_unresolved_issues and case.risk_assessment.risk_tier.value == "CRITICAL":
-            case.status = CaseStatus.ISSUES_IDENTIFIED
-            case.current_stage = WorkflowStage.STAGE_6_ALERT_INVESTIGATION
-            case.current_queue = ComplianceQueue.MAKER_QUEUE
-            case.maker_memo.recommended_action = Recommendation.REJECT_PROHIBITED
-        else:
+        # Respect operational queue: Maker cases remain in Maker Queue until explicit submission to L1 Checker
+        if case.current_queue == ComplianceQueue.MAKER_QUEUE:
+            if case.has_unresolved_issues and case.risk_assessment and case.risk_assessment.risk_tier.value == "CRITICAL":
+                case.status = CaseStatus.ISSUES_IDENTIFIED
+                case.current_stage = WorkflowStage.STAGE_6_ALERT_INVESTIGATION
+                case.maker_memo.recommended_action = Recommendation.REJECT_PROHIBITED
+            else:
+                case.status = CaseStatus.MAKER_IN_PROGRESS
+                case.current_stage = WorkflowStage.STAGE_7_MAKER_COMPLETION
+
+            case.audit_trail.append(
+                AuditEvent(
+                    stage=WorkflowStage.STAGE_7_MAKER_COMPLETION,
+                    actor="KYC_MAKER_AGENT",
+                    action="MAKER_ANALYSIS_COMPLETED",
+                    details=f"Maker populated KYC record and self-check. Recommendation: {case.maker_memo.recommended_action.value}. Awaiting submission to L1 Checker.",
+                )
+            )
+        elif case.current_queue == ComplianceQueue.L1_CHECKER_QUEUE:
             case.status = CaseStatus.PENDING_L1_CHECKER
             case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
-            case.current_queue = ComplianceQueue.L1_CHECKER_QUEUE
+        elif case.current_queue == ComplianceQueue.L2_CHECKER_QUEUE:
+            case.status = CaseStatus.PENDING_L2_CHECKER
+            case.current_stage = WorkflowStage.STAGE_8_CHECKER_REVIEW
+        elif case.current_queue == ComplianceQueue.MLRO_QUEUE:
+            case.status = CaseStatus.ESCALATED_MLRO
+            case.current_stage = WorkflowStage.STAGE_11_ESCALATION
 
         case.updated_at = datetime.utcnow()
-        case.audit_trail.append(
-            AuditEvent(
-                stage=WorkflowStage.STAGE_7_MAKER_COMPLETION,
-                actor="KYC_MAKER_AGENT",
-                action="CASE_SUBMITTED_TO_CHECKER",
-                details=f"Maker populated KYC record, performed final self-check, and submitted dossier to Checker queue. Recommendation: {case.maker_memo.recommended_action.value}.",
-            )
-        )
 
         return case

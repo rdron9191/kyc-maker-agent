@@ -442,6 +442,31 @@ class AlertDispositionRequest(BaseModel):
     investigator_name: str = "KYC Maker Specialist"
 
 
+class CaseMoveQueueRequest(BaseModel):
+    target_queue: ComplianceQueue
+    reason: Optional[str] = "Manual queue transition"
+    actor: Optional[str] = "Compliance Officer"
+
+
+class CaseAssignRequest(BaseModel):
+    level: str  # "MAKER", "L1_CHECKER", "L2_CHECKER", "MLRO"
+    assignee_name: str
+    assigned_by: Optional[str] = "Compliance Supervisor"
+    notes: Optional[str] = None
+
+
+class CaseClaimRequest(BaseModel):
+    level: Optional[str] = None  # Auto-inferred if omitted
+    claimant_name: str
+    claimant_role: Optional[str] = None
+
+
+class CaseReleaseRequest(BaseModel):
+    level: Optional[str] = None
+    released_by: str = "Compliance Officer"
+    reason: Optional[str] = "Released back to queue pool"
+
+
 class KYCCase(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     case_number: str
@@ -460,8 +485,9 @@ class KYCCase(BaseModel):
     priority: PriorityLevel = PriorityLevel.MEDIUM
     assigned_maker: str = "KYC Maker AI Agent (Core)"
     assigned_checker: Optional[str] = "Senior Compliance Checker"
-    assigned_checker_l1: Optional[str] = "L1 Compliance Checker"
-    assigned_checker_l2: Optional[str] = "L2 Senior Compliance Lead"
+    assigned_checker_l1: Optional[str] = "Sarah Jenkins (L1 Checker)"
+    assigned_checker_l2: Optional[str] = "Marcus Vance (L2 Senior VP)"
+    assigned_mlro: Optional[str] = "Arthur Pendelton (Global MLRO)"
     business_size: Optional[BusinessSize] = BusinessSize.MEDIUM
     deadline_date: Optional[str] = None
     

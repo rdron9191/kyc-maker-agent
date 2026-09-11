@@ -577,3 +577,27 @@ PRESET_DEMO_CASES = [
         ],
     },
 ]
+
+COMPLIANCE_ROSTER = {
+    "MAKER": [
+        {"id": "maker-ai", "name": "KYC Maker AI Agent (Core)", "role": "Autonomous KYC Maker Agent", "tier": "MAKER", "status": "ONLINE"},
+        {"id": "maker-1", "name": "Alex Rivera", "role": "Senior Maker Analyst", "tier": "MAKER", "status": "ACTIVE"},
+        {"id": "maker-2", "name": "Elena Rostova", "role": "Corporate Onboarding Specialist", "tier": "MAKER", "status": "ACTIVE"},
+        {"id": "maker-3", "name": "Siddharth Nair", "tier": "MAKER", "role": "CDD Operations Analyst", "status": "ACTIVE"},
+    ],
+    "L1_CHECKER": [
+        {"id": "l1-1", "name": "Sarah Jenkins", "role": "L1 Compliance Checker (4-Eyes)", "tier": "L1_CHECKER", "status": "ACTIVE"},
+        {"id": "l1-2", "name": "David Chen", "role": "L1 Independent Reviewer", "tier": "L1_CHECKER", "status": "ACTIVE"},
+        {"id": "l1-3", "name": "Liam O'Connor", "role": "L1 Screening Specialist", "tier": "L1_CHECKER", "status": "ACTIVE"},
+    ],
+    "L2_CHECKER": [
+        {"id": "l2-1", "name": "Marcus Vance", "role": "L2 Senior Compliance Lead (6-Eyes)", "tier": "L2_CHECKER", "status": "ACTIVE"},
+        {"id": "l2-2", "name": "Rachel Sterling", "role": "Senior Director, EDD & Complex Structures", "tier": "L2_CHECKER", "status": "ACTIVE"},
+        {"id": "l2-3", "name": "Amara Okafor", "role": "VP Global KYC Governance", "tier": "L2_CHECKER", "status": "ACTIVE"},
+    ],
+    "MLRO": [
+        {"id": "mlro-1", "name": "Arthur Pendelton", "role": "Global MLRO / Head of FCC", "tier": "MLRO", "status": "ACTIVE"},
+        {"id": "mlro-2", "name": "Victoria Vance", "role": "Chief Compliance Officer (CCO)", "tier": "MLRO", "status": "ACTIVE"},
+        {"id": "mlro-3", "name": "Jonathan Cross", "role": "Deputy MLRO & Sanctions Head", "tier": "MLRO", "status": "ACTIVE"},
+    ]
+}

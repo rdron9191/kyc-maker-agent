@@ -38,14 +38,31 @@ import VerificationMatrix from './VerificationMatrix';
 import ScreeningHits from './ScreeningHits';
 import MakerMemo from './MakerMemo';
 
-export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCase }) {
+export default function CaseDetail({
+  caseData,
+  activeQueue = 'ALL',
+  activeOfficer,
+  onBack,
+  onCaseUpdated,
+  onDeleteCase,
+}) {
   const [activeTab, setActiveTab] = useState('OVERVIEW');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isPeriodicRunning, setIsPeriodicRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMovingQueue, setIsMovingQueue] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [roster, setRoster] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFeedback, setExportFeedback] = useState('');
   const exportMenuRef = useRef(null);
+
+  useEffect(() => {
+    fetch('/api/compliance-roster')
+      .then((r) => r.json())
+      .then((data) => setRoster(data))
+      .catch((err) => console.error('Failed to load compliance roster:', err));
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -56,6 +73,102 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Direct Queue Transition
+  const handleMoveQueue = async (targetQueue) => {
+    if (targetQueue === caseData.current_queue) return;
+    setIsMovingQueue(true);
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/move-queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_queue: targetQueue,
+          reason: `Manual queue transition by ${activeOfficer?.name || 'Compliance Officer'}`,
+          actor: activeOfficer?.name || 'Compliance Officer',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to move case between queues');
+      const updated = await res.json();
+      onCaseUpdated(updated);
+      setExportFeedback(`Moved to ${getQueueBadge(targetQueue).label}`);
+      setTimeout(() => setExportFeedback(''), 4000);
+    } catch (err) {
+      alert(`Queue Transition Error: ${err.message}`);
+    } finally {
+      setIsMovingQueue(false);
+    }
+  };
+
+  // Self-assignment / Claim Case
+  const handleClaimCurrentCase = async (customTier = null) => {
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          level: customTier || undefined,
+          claimant_name: activeOfficer?.name || 'Sarah Jenkins (L1 Checker)',
+          claimant_role: activeOfficer?.role || 'L1 Compliance Checker',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to claim case');
+      const updated = await res.json();
+      onCaseUpdated(updated);
+      setExportFeedback(`Claimed by ${activeOfficer?.name || 'Officer'}`);
+      setTimeout(() => setExportFeedback(''), 4000);
+    } catch (err) {
+      alert(`Claim Error: ${err.message}`);
+    }
+  };
+
+  // Release Case back to Queue Pool
+  const handleReleaseCurrentCase = async () => {
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          level: activeOfficer?.tier,
+          released_by: activeOfficer?.name || 'Compliance Officer',
+          reason: 'Officer released record back to general queue pool',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to release case');
+      const updated = await res.json();
+      onCaseUpdated(updated);
+      setExportFeedback('Case released back to queue pool');
+      setTimeout(() => setExportFeedback(''), 4000);
+    } catch (err) {
+      alert(`Release Error: ${err.message}`);
+    }
+  };
+
+  // 4-Tier Manual Assignment
+  const handleAssignTier = async (level, assigneeName) => {
+    setIsAssigning(true);
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          level,
+          assignee_name: assigneeName,
+          assigned_by: activeOfficer?.name || 'Compliance Officer',
+          notes: 'Assigned via Multi-Tier Governance Desk',
+        }),
+      });
+      if (!res.ok) throw new Error('Assignment failed');
+      const updated = await res.json();
+      onCaseUpdated(updated);
+      setExportFeedback(`Assigned ${level} to ${assigneeName}`);
+      setTimeout(() => setExportFeedback(''), 4000);
+    } catch (err) {
+      alert(`Assignment Error: ${err.message}`);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   const triggerExport = (format) => {
     try {
@@ -223,29 +336,94 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
   if (status === 'RETURNED_TO_MAKER' || status === 'ISSUES_IDENTIFIED') statusBadge = 'badge-medium';
   if (status === 'ESCALATED_MLRO') statusBadge = 'badge-critical';
 
+  const getCurrentQueueAssignee = () => {
+    switch (caseData.current_queue) {
+      case 'MAKER_QUEUE':
+        return { tier: 'Maker', name: caseData.assigned_maker || 'Unassigned (Maker Pool)' };
+      case 'L1_CHECKER_QUEUE':
+        return { tier: 'L1 Checker', name: caseData.assigned_checker_l1 || caseData.assigned_checker || 'Unassigned (L1 Pool)' };
+      case 'L2_CHECKER_QUEUE':
+        return { tier: 'L2 Senior', name: caseData.assigned_checker_l2 || 'Unassigned (L2 Pool)' };
+      case 'MLRO_QUEUE':
+        return { tier: 'MLRO', name: caseData.assigned_mlro || 'Arthur Pendelton (Global MLRO)' };
+      case 'PERIODIC_MONITORING_QUEUE':
+        return { tier: 'Surveillance', name: 'Auto-Surveillance Engine' };
+      case 'COMPLETED_ARCHIVE':
+        return { tier: 'Archive', name: 'Archived Dossier' };
+      default:
+        return { tier: 'Reviewer', name: caseData.assigned_checker || 'Unassigned' };
+    }
+  };
+
+  const currentQueueAssignee = getCurrentQueueAssignee();
+  const isClaimedByMe = activeOfficer?.name && currentQueueAssignee.name.toLowerCase().includes(activeOfficer.name.split(' ')[0].toLowerCase());
+  const canClaim = caseData.current_queue !== 'COMPLETED_ARCHIVE' && caseData.current_queue !== 'PERIODIC_MONITORING_QUEUE';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Top Action Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {/* Primary Back Button based on activeQueue */}
           <button
-            onClick={() => onBack(caseData.current_queue)}
+            onClick={() => onBack(activeQueue || 'ALL')}
             className="btn btn-secondary"
-            title={`Return to ${queueBadge.label}`}
+            title={`Return to ${activeQueue && activeQueue !== 'ALL' ? getQueueBadge(activeQueue).label : 'All Cases'}`}
           >
-            <ArrowLeft size={15} /> Back to {queueBadge.label}
+            <ArrowLeft size={15} /> Back to {activeQueue && activeQueue !== 'ALL' ? getQueueBadge(activeQueue).label : 'All Cases'}
           </button>
-          <button
-            onClick={() => onBack('ALL')}
-            className="btn btn-secondary btn-sm"
-            style={{ color: 'var(--text-muted)' }}
-            title="Return to All Queues"
-          >
-            All Queues
-          </button>
+
+          {/* Quick Jump to All Queues */}
+          {activeQueue !== 'ALL' && (
+            <button
+              onClick={() => onBack('ALL')}
+              className="btn btn-secondary btn-sm"
+              style={{ color: 'var(--text-muted)' }}
+              title="Return to All Queues"
+            >
+              All Queues
+            </button>
+          )}
+
+          {/* Quick jump to case's internal queue if different */}
+          {activeQueue !== caseData.current_queue && (
+            <button
+              onClick={() => onBack(caseData.current_queue)}
+              className="btn btn-secondary btn-sm"
+              style={{ color: 'var(--text-muted)' }}
+              title={`View ${queueBadge.label}`}
+            >
+              Go to {queueBadge.label}
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {/* Claim / Release Record Actions */}
+          {isClaimedByMe ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span className="tag" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#34d399', fontWeight: '600', padding: '0.35rem 0.6rem' }}>
+                <CheckCircle2 size={12} /> Claimed by You
+              </span>
+              <button
+                onClick={handleReleaseCurrentCase}
+                className="btn btn-secondary btn-sm"
+                title="Release case back to unassigned queue pool"
+              >
+                <RotateCcw size={13} /> Release
+              </button>
+            </div>
+          ) : canClaim ? (
+            <button
+              onClick={() => handleClaimCurrentCase()}
+              className="btn btn-primary btn-sm"
+              style={{ fontWeight: '600', gap: '0.35rem' }}
+              title={`Claim record as ${activeOfficer?.name}`}
+            >
+              <UserCheck size={14} /> Claim Record
+            </button>
+          ) : null}
+
           {exportFeedback && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: '600', animation: 'fadeIn 0.2s ease-out' }}>
               <Check size={13} />
@@ -497,22 +675,236 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-              Current Queue Location
+          {/* Interactive Queue Location & Transition Router */}
+          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
+              Queue Routing
             </div>
-            <span className="tag" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)', fontWeight: '600' }}>
-              Queue: {queueBadge.label}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <select
+                value={caseData.current_queue}
+                onChange={(e) => handleMoveQueue(e.target.value)}
+                disabled={isMovingQueue}
+                style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="MAKER_QUEUE">Maker Queue (In-Flight / Drafting)</option>
+                <option value="L1_CHECKER_QUEUE">L1 Checker Queue (4-Eyes)</option>
+                <option value="L2_CHECKER_QUEUE">L2 Senior Checker Queue (6-Eyes)</option>
+                <option value="MLRO_QUEUE">MLRO Escalation Queue</option>
+                <option value="PERIODIC_MONITORING_QUEUE">Periodic Monitoring Queue</option>
+                <option value="COMPLETED_ARCHIVE">Completed Archive (Approved/Closed)</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700', marginBottom: '0.2rem' }}>
               Workflow Status
             </div>
             <span className={`badge ${statusBadge}`} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
               {status.replace(/_/g, ' ')}
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4-Tier Institutional Assignment Governance Desk */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '1.25rem 1.5rem',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.85rem',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '0.45rem', borderRadius: 'var(--radius-md)', color: 'var(--accent-primary)' }}>
+              <UserCheck size={16} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                Multi-Tier Assignment & Reviewer Governance Desk
+                <span className="tag" style={{ fontSize: '0.65rem' }}>4-Tier Authority</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Directly reassign compliance officers across Maker, L1 Checker (4-Eyes), L2 Senior (6-Eyes), and Global MLRO.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current Queue Focus:</span>
+            <span className="tag" style={{ background: 'rgba(37, 99, 235, 0.12)', borderColor: 'rgba(37, 99, 235, 0.35)', color: '#60a5fa', fontWeight: '700' }}>
+              {currentQueueAssignee.tier}: {currentQueueAssignee.name}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+          {/* Maker Analyst */}
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '0.85rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>1. Maker Analyst</span>
+              {caseData.current_queue === 'MAKER_QUEUE' && (
+                <span className="tag" style={{ fontSize: '0.65rem', background: 'rgba(37, 99, 235, 0.15)', color: '#60a5fa' }}>Active Queue</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {caseData.assigned_maker || 'Unassigned'}
+            </div>
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) handleAssignTier('MAKER', e.target.value);
+              }}
+              disabled={isAssigning}
+              style={{
+                marginTop: '0.35rem',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.72rem',
+                padding: '0.3rem 0.5rem',
+                borderRadius: 'var(--radius-sm)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Reassign Maker Analyst...</option>
+              {roster?.MAKER?.map((m) => (
+                <option key={m.id} value={m.name}>
+                  {m.name} ({m.workload} active)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* L1 Checker (4-Eyes) */}
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '0.85rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>2. L1 Checker (4-Eyes)</span>
+              {caseData.current_queue === 'L1_CHECKER_QUEUE' && (
+                <span className="tag" style={{ fontSize: '0.65rem', background: 'rgba(37, 99, 235, 0.15)', color: '#60a5fa' }}>Active Queue</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {caseData.assigned_checker_l1 || caseData.assigned_checker || 'Unassigned'}
+            </div>
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) handleAssignTier('L1_CHECKER', e.target.value);
+              }}
+              disabled={isAssigning}
+              style={{
+                marginTop: '0.35rem',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.72rem',
+                padding: '0.3rem 0.5rem',
+                borderRadius: 'var(--radius-sm)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Reassign L1 Checker...</option>
+              {roster?.L1_CHECKER?.map((m) => (
+                <option key={m.id} value={m.name}>
+                  {m.name} ({m.workload} active)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* L2 Senior Lead (6-Eyes) */}
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '0.85rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>3. L2 Senior (6-Eyes)</span>
+              {caseData.current_queue === 'L2_CHECKER_QUEUE' && (
+                <span className="tag" style={{ fontSize: '0.65rem', background: 'rgba(37, 99, 235, 0.15)', color: '#60a5fa' }}>Active Queue</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {caseData.assigned_checker_l2 || 'Unassigned'}
+            </div>
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) handleAssignTier('L2_CHECKER', e.target.value);
+              }}
+              disabled={isAssigning}
+              style={{
+                marginTop: '0.35rem',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.72rem',
+                padding: '0.3rem 0.5rem',
+                borderRadius: 'var(--radius-sm)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Reassign L2 Senior...</option>
+              {roster?.L2_CHECKER?.map((m) => (
+                <option key={m.id} value={m.name}>
+                  {m.name} ({m.workload} active)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Global MLRO / FCC Head */}
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', padding: '0.85rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>4. Global MLRO</span>
+              {caseData.current_queue === 'MLRO_QUEUE' && (
+                <span className="tag" style={{ fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>Active Queue</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {caseData.assigned_mlro || 'Arthur Pendelton (Global MLRO)'}
+            </div>
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) handleAssignTier('MLRO', e.target.value);
+              }}
+              disabled={isAssigning}
+              style={{
+                marginTop: '0.35rem',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.72rem',
+                padding: '0.3rem 0.5rem',
+                borderRadius: 'var(--radius-sm)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Reassign MLRO...</option>
+              {roster?.MLRO?.map((m) => (
+                <option key={m.id} value={m.name}>
+                  {m.name} ({m.workload} active)
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

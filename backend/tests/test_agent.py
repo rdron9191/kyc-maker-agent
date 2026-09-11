@@ -105,7 +105,7 @@ def test_end_to_end_maker_pipeline_clean_case():
     )
     
     analyzed = agent.process_case(case)
-    assert analyzed.status in [CaseStatus.PENDING_CHECKER, CaseStatus.PENDING_L1_CHECKER]
+    assert analyzed.status in [CaseStatus.PENDING_CHECKER, CaseStatus.PENDING_L1_CHECKER, CaseStatus.MAKER_IN_PROGRESS]
     assert analyzed.risk_assessment.risk_tier == RiskTier.LOW
     assert analyzed.maker_memo.recommended_action == Recommendation.APPROVE_SDD
 
@@ -243,6 +243,58 @@ def test_auto_trigger_periodic_reviews_api():
     assert data["status"] == "SUCCESS"
     assert data["triggered_count"] > 0
     assert "policy_matrix" in data
+
+
+def test_queue_routing_and_assignment_apis():
+    """Verify queue transition, self-claiming, releasing, and multi-tier reassignments."""
+    # 1. Roster verification
+    roster_res = client.get("/api/compliance-roster")
+    assert roster_res.status_code == 200
+    roster = roster_res.json()
+    assert "MAKER" in roster and "L1_CHECKER" in roster and "L2_CHECKER" in roster and "MLRO" in roster
+
+    # Get a test case
+    cases_res = client.get("/api/cases")
+    test_case = cases_res.json()[0]
+    case_id = test_case["id"]
+
+    # 2. Queue movement
+    move_res = client.post(
+        f"/api/cases/{case_id}/move-queue",
+        json={"target_queue": "L2_CHECKER_QUEUE", "reason": "Test escalation", "actor": "Test Officer"}
+    )
+    assert move_res.status_code == 200
+    moved_case = move_res.json()
+    assert moved_case["current_queue"] == "L2_CHECKER_QUEUE"
+    assert moved_case["status"] == "PENDING_L2_CHECKER"
+
+    # 3. Claim case
+    claim_res = client.post(
+        f"/api/cases/{case_id}/claim",
+        json={"claimant_name": "Marcus Vance", "claimant_role": "L2 Senior VP", "level": "L2_CHECKER"}
+    )
+    assert claim_res.status_code == 200
+    claimed_case = claim_res.json()
+    assert claimed_case["assigned_checker_l2"] == "Marcus Vance"
+
+    # 4. Release case
+    release_res = client.post(
+        f"/api/cases/{case_id}/release",
+        json={"level": "L2_CHECKER", "released_by": "Marcus Vance", "reason": "Testing release"}
+    )
+    assert release_res.status_code == 200
+    released_case = release_res.json()
+    assert "Unassigned" in released_case["assigned_checker_l2"]
+
+    # 5. Multi-tier assignment
+    assign_res = client.post(
+        f"/api/cases/{case_id}/assign",
+        json={"level": "MLRO", "assignee_name": "Victoria Vance", "assigned_by": "Test Lead"}
+    )
+    assert assign_res.status_code == 200
+    assigned_case = assign_res.json()
+    assert assigned_case["assigned_mlro"] == "Victoria Vance"
+
 
 
 
