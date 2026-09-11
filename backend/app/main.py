@@ -253,6 +253,18 @@ def trigger_periodic_review(case_id: str):
     return analyzed_case
 
 
+@app.post("/api/cases/{case_id}/sync-external-intelligence", response_model=KYCCase)
+def sync_external_intelligence(case_id: str):
+    """Step 4 & 5A: Trigger live synchronization of Dun & Bradstreet (D&B) and LexisNexis intelligence."""
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    analyzed_case = agent.process_case(case)
+    db.save_case(analyzed_case)
+    return analyzed_case
+
+
 @app.post("/api/cases/{case_id}/submit-to-checker", response_model=KYCCase)
 def submit_to_checker(case_id: str):
     """Step 7A -> 8: Maker submits completed record to L1 Checker Queue."""

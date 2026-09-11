@@ -21,7 +21,8 @@ import {
   FileSpreadsheet,
   FileCode,
   Table,
-  Check
+  Check,
+  Database
 } from 'lucide-react';
 
 import { exportToPDF, exportToExcel, exportToCSV, exportToJSON } from '../utils/exportDossier';
@@ -100,6 +101,24 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
       alert(`Periodic Review Error: ${err.message}`);
     } finally {
       setIsPeriodicRunning(false);
+    }
+  };
+
+  // Sync Third-Party Intelligence (D&B Direct+ & LexisNexis Bridger Insight)
+  const [isSyncingExt, setIsSyncingExt] = useState(false);
+  const handleSyncExternalIntelligence = async () => {
+    setIsSyncingExt(true);
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/sync-external-intelligence`, { method: 'POST' });
+      if (!res.ok) throw new Error('External intelligence synchronization failed');
+      const updated = await res.json();
+      onCaseUpdated(updated);
+      setExportFeedback('Synced D&B & LexisNexis');
+      setTimeout(() => setExportFeedback(''), 3500);
+    } catch (err) {
+      alert(`Sync Error: ${err.message}`);
+    } finally {
+      setIsSyncingExt(false);
     }
   };
 
@@ -219,6 +238,17 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
               <span>{exportFeedback}</span>
             </div>
           )}
+
+          <button
+            onClick={handleSyncExternalIntelligence}
+            disabled={isSyncingExt}
+            className="btn btn-secondary"
+            style={{ background: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.4)', color: '#60a5fa' }}
+            title="Live query sync with Dun & Bradstreet Direct+ and LexisNexis Bridger Insight"
+          >
+            <Database size={16} className={isSyncingExt ? 'animate-spin' : ''} />
+            {isSyncingExt ? 'Syncing Feeds...' : 'Sync D&B / LexisNexis'}
+          </button>
 
           <button
             onClick={handleTriggerPeriodicReview}
@@ -543,6 +573,7 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <CDDAnalysisView
             cddProfile={caseData.cdd_profile}
+            externalIntelligence={caseData.external_intelligence}
             entityType={caseData.entity_type}
             primaryName={caseData.primary_name}
             documents={caseData.documents}

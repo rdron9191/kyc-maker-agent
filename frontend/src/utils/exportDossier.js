@@ -172,6 +172,65 @@ export const exportToExcel = (caseData) => {
   wsAudit['!cols'] = [{ wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 25 }, { wch: 55 }];
   XLSX.utils.book_append_sheet(wb, wsAudit, 'Audit Trail');
 
+  // 6. Third-Party Intelligence Sheet (D&B & LexisNexis)
+  const ext = caseData.external_intelligence || {};
+  const dnb = ext.dnb_profile;
+  const ln = ext.lexisnexis_summary;
+  const gleif = ext.gleif_record;
+
+  const extData = [
+    ['THIRD-PARTY INTELLIGENCE & REGISTRY FEEDS'],
+    ['Data Provenance Signature', ext.data_provenance_signature || 'N/A'],
+    ['Sync Timestamp', formatDate(ext.synced_at)],
+    ['Cached Response', ext.is_cached ? 'YES (Query Hash Cache)' : 'NO (Live API Pull)'],
+    [''],
+    ['DUN & BRADSTREET (D&B DIRECT+) PROFILE'],
+    ['D-U-N-S Number', dnb?.duns_number || 'N/A'],
+    ['Official Company Name', dnb?.company_name || 'N/A'],
+    ['Operating Status', dnb?.operating_status || 'N/A'],
+    ['Parent Entity', dnb?.parent_company || 'N/A'],
+    ['Global Ultimate D-U-N-S', dnb?.global_ultimate_duns || 'N/A'],
+    ['D&B PAYDEX Credit Score', dnb?.paydex_score ? `${dnb.paydex_score} / 100` : 'N/A'],
+    ['Annual Turnover', dnb?.annual_turnover || 'N/A'],
+    ['Employee Headcount', dnb?.employee_count || 'N/A'],
+    ['SIC Industry Code', dnb?.sic_code || 'N/A'],
+    ['NAICS Code', dnb?.naics_code || 'N/A'],
+    [''],
+    ['GLEIF LEGAL ENTITY IDENTIFIER (LEI)'],
+    ['LEI Code', gleif?.lei || 'N/A'],
+    ['Entity Legal Name', gleif?.legal_name || 'N/A'],
+    ['LEI Status', gleif?.entity_status || 'N/A'],
+    ['Managing LOU', gleif?.managing_lou || 'N/A'],
+    [''],
+    ['LEXISNEXIS BRIDGER INSIGHT SCREENING SUMMARY'],
+    ['Query Hash', ln?.query_hash || 'N/A'],
+    ['Provider Source', ln?.provider_source || 'LexisNexis Bridger Insight XG'],
+    ['Total Hits Flagged', ln?.total_hits || 0],
+    ['Sanctions Hits', ln?.sanctions_count || 0],
+    ['PEP Matches', ln?.pep_count || 0],
+    ['Adverse Media Matches', ln?.adverse_media_count || 0],
+    ['Confidence Threshold', `${ln?.search_confidence_threshold || 80}%`],
+  ];
+
+  if (dnb?.verified_ubos && dnb.verified_ubos.length > 0) {
+    extData.push(['']);
+    extData.push(['D&B DIRECT+ VERIFIED BENEFICIAL OWNERSHIP (UBOS)']);
+    extData.push(['Owner Name', 'Ownership %', 'Tier Level', 'PEP Linked', 'Registry Corroboration']);
+    dnb.verified_ubos.forEach((u) => {
+      extData.push([
+        u.name,
+        `${u.percentage}%`,
+        u.tier_level === 1 ? 'Direct Shareholder' : 'Tier 2 Indirect Holding',
+        u.is_pep ? 'YES' : 'NO',
+        'Verified in Official Registry',
+      ]);
+    });
+  }
+
+  const wsExt = XLSX.utils.aoa_to_sheet(extData);
+  wsExt['!cols'] = [{ wch: 30 }, { wch: 50 }, { wch: 20 }, { wch: 15 }, { wch: 30 }];
+  XLSX.utils.book_append_sheet(wb, wsExt, 'D&B & LexisNexis');
+
   // Save Workbook
   const filename = `KYC_DOSSIER_${caseData.case_number || 'CASE'}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);

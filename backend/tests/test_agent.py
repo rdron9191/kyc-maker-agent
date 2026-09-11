@@ -151,3 +151,53 @@ def test_periodic_review_flow():
     assert pr_data["trigger_type"] == "PERIODIC_RE_KYC"
     assert pr_data["maker_memo"]["periodic_delta_summary"] is not None
 
+
+def test_dnb_adapter_corporate_profile():
+    """Verify Dun & Bradstreet Direct+ connector extracts D-U-N-S, financials, and UBO tree."""
+    from backend.integrations.dnb_adapter import DunAndBradstreetAdapter
+    dnb = DunAndBradstreetAdapter()
+    profile = dnb.fetch_corporate_profile("Quantum Dynamics Technologies Ltd", country="GB")
+    assert profile.duns_number == "08-112-4982"
+    assert profile.operating_status == "ACTIVE"
+    assert profile.paydex_score == 82
+    assert len(profile.verified_ubos) >= 2
+    assert profile.verified_ubos[0].percentage >= 25.0
+
+
+def test_lexisnexis_screening_adapter():
+    """Verify LexisNexis Bridger Insight adapter executes watchlists and computes query hash."""
+    from backend.integrations.lexisnexis_adapter import LexisNexisBridgerAdapter
+    ln = LexisNexisBridgerAdapter()
+    matches, summary = ln.screen_entity(
+        names_to_screen=["Tariq Al-Mansoor", "Elena Rostova"],
+        country="US",
+    )
+    assert len(matches) >= 2
+    assert summary.sanctions_count >= 1
+    assert summary.pep_count >= 1
+    assert summary.query_hash.startswith("SHA256:")
+    assert matches[0].source_provider.startswith("LexisNexis")
+
+
+def test_gleif_adapter():
+    """Verify GLEIF Legal Entity Identifier lookup."""
+    from backend.integrations.gleif_adapter import GLEIFAdapter
+    gleif = GLEIFAdapter()
+    record = gleif.lookup_lei("Apex Nordic Seafood AS", country="NO")
+    assert len(record.lei) == 20
+    assert record.entity_status.startswith("ACTIVE")
+
+
+def test_sync_external_intelligence_api():
+    """Verify live third-party sync endpoint enriches case with D&B and LexisNexis."""
+    cases_res = client.get("/api/cases")
+    corp_case = next(c for c in cases_res.json() if c["entity_type"] == "CORPORATE")
+    
+    sync_res = client.post(f"/api/cases/{corp_case['id']}/sync-external-intelligence")
+    assert sync_res.status_code == 200
+    synced_data = sync_res.json()
+    assert synced_data["external_intelligence"] is not None
+    assert synced_data["external_intelligence"]["dnb_profile"] is not None
+    assert synced_data["external_intelligence"]["lexisnexis_summary"] is not None
+
+

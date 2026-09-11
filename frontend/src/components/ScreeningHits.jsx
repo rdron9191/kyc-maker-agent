@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { ShieldAlert, UserCheck, Newspaper, Globe, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import {
+  ShieldAlert,
+  UserCheck,
+  Newspaper,
+  Globe,
+  AlertOctagon,
+  CheckCircle2,
+  Database,
+  ExternalLink,
+  Shield,
+  Layers
+} from 'lucide-react';
 
 export default function ScreeningHits({ screeningMatches = [] }) {
   const [activeFilter, setActiveFilter] = useState('ALL');
@@ -15,12 +26,23 @@ export default function ScreeningHits({ screeningMatches = [] }) {
 
   return (
     <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      {/* Header with Provider Badge */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <ShieldAlert size={18} color="var(--accent-secondary)" />
-          <h3 style={{ fontSize: '1rem', fontWeight: '700' }}>Watchlist, PEP & Adverse Media Screening</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '0.45rem', borderRadius: 'var(--radius-md)', color: '#f87171' }}>
+            <ShieldAlert size={20} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800' }}>
+              LexisNexis Bridger Insight & Watchlist Screening
+            </h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Live OFAC SDN, EU, UN, PEP Directories & Adverse Media Surveillance
+            </span>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
+
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveFilter('ALL')}
             className="btn btn-sm btn-secondary"
@@ -72,7 +94,7 @@ export default function ScreeningHits({ screeningMatches = [] }) {
         <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1.25rem', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <CheckCircle2 size={24} color="var(--color-success)" />
           <div style={{ fontSize: '0.875rem' }}>
-            <strong>Zero screening hits detected</strong> for this category across official global watchlists and news feeds.
+            <strong>Zero screening hits detected</strong> for this category across LexisNexis WorldCompliance registries and global feeds.
           </div>
         </div>
       ) : (
@@ -107,21 +129,24 @@ export default function ScreeningHits({ screeningMatches = [] }) {
                   background: 'var(--bg-tertiary)',
                   border: `1px solid ${borderColor}`,
                   borderRadius: 'var(--radius-md)',
-                  padding: '1.1rem',
+                  padding: '1.15rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.6rem',
+                  gap: '0.65rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <Icon size={18} color="var(--accent-secondary)" />
                     <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{m.matched_entity}</span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>({m.list_name})</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({m.list_name})</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span className="tag" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontSize: '0.7rem' }}>
+                      {m.source_provider || 'LexisNexis Bridger Insight'}
+                    </span>
                     <span className={`badge ${badgeClass}`}>{m.type}</span>
-                    <span className="tag" style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                    <span className="tag" style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
                       Match: {m.match_score}%
                     </span>
                   </div>
@@ -137,11 +162,19 @@ export default function ScreeningHits({ screeningMatches = [] }) {
                   {m.risk_summary}
                 </div>
 
-                {m.program_or_category && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    <strong>Program / Category:</strong> {m.program_or_category}
-                  </div>
-                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {m.program_or_category && (
+                    <span><strong>Category / Regime:</strong> {m.program_or_category}</span>
+                  )}
+                  {m.adverse_media_source && (
+                    <span><strong>Source:</strong> {m.adverse_media_source} ({m.adverse_media_date || 'Recent'})</span>
+                  )}
+                  {m.provider_hit_id && (
+                    <span className="tag" style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)' }}>
+                      ID: {m.provider_hit_id}
+                    </span>
+                  )}
+                </div>
 
                 {m.analyst_note && (
                   <div style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)', background: 'rgba(99, 102, 241, 0.08)', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--accent-primary)' }}>

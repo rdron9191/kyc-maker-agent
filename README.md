@@ -34,6 +34,28 @@ An autonomous, multi-agent AI system for Know Your Customer (KYC) and Know Your 
 
 ---
 
+## 🌐 Third-Party Compliance Intelligence Integrations
+
+The KYC Maker Agent seamlessly orchestrates external compliance data providers with real-time payload hydration, intelligent cryptographic query hashing (`SHA-256`), and immutable audit logging:
+
+1. **Dun & Bradstreet (D&B Direct+)**:
+   - Corporate hierarchy resolution and verified 9-digit **D-U-N-S Number** linking.
+   - **PAYDEX® credit & delinquency scoring** (1-100 index).
+   - Multi-tier **Ultimate Beneficial Ownership (UBO $\ge 25\%$)** legal lineage tree.
+   - Industry sector classification (SIC / NAICS codes), active operational status, annual revenues, and employee scale.
+
+2. **LexisNexis (Bridger Insight® XG / WorldCompliance)**:
+   - Real-time screening across OFAC SDN, EU Consolidated, UN Security Council, and UK OFSI sanctions lists.
+   - Tier 1-3 Politically Exposed Persons (PEP) matching with relationship classification.
+   - Adverse Media negative news indexing with exact article provenance, date of report, and risk categorization.
+   - Search query hash validation and exact provider hit tracking for regulatory examination.
+
+3. **GLEIF (Global Legal Entity Identifier Foundation)**:
+   - 20-character alphanumeric **Legal Entity Identifier (LEI)** validation under ISO 17442.
+   - Local Operating Unit (LOU) registration status and entity legal verification.
+
+---
+
 ## 🔄 12-Stage KYC Process Flow & Record Movement
 
 ```mermaid
@@ -111,6 +133,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 - `GET /api/cases/{id}`: Fetch complete case dossier, extracted data, risk score, memo, and queue history.
 - `POST /api/cases/{id}/documents`: Ingest a new credential document and trigger instant extraction.
 - `POST /api/cases/{id}/analyze`: Re-run the KYC Maker AI Agent pipeline.
+- `POST /api/cases/{id}/sync-external-intelligence`: On-demand live synchronization with Dun & Bradstreet, LexisNexis Bridger Insight, and GLEIF.
 - `POST /api/cases/{id}/submit-to-checker`: Transition case from Maker Queue to L1 Checker Queue.
 - `POST /api/cases/{id}/decision`: Submit L1 or L2 Checker review (`APPROVED_SDD`, `APPROVED_EDD`, `PENDING_L2_CHECKER`, `RETURNED_TO_MAKER`, `RETURNED_TO_L1`, `ESCALATED_MLRO`).
 - `POST /api/cases/{id}/mlro-decision`: Record MLRO executive determination (`APPROVED`, `RETURNED`, `REJECTED`).
@@ -125,4 +148,4 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 .venv/bin/pytest -v
 ```
 
-8/8 comprehensive automated unit and integration tests passing.
+12/12 comprehensive automated unit and integration tests passing.

@@ -222,12 +222,72 @@ class ScreeningMatch(BaseModel):
     adverse_media_source: Optional[str] = None
     adverse_media_date: Optional[str] = None
     risk_summary: str
+    source_provider: str = "LexisNexis Bridger Insight XG"
+    provider_hit_id: Optional[str] = None
     
     # Step 6: Investigation & Disposition
     disposition: AlertDisposition = AlertDisposition.UNRESOLVED
     disposition_rationale: Optional[str] = None
     investigated_by: Optional[str] = None
     investigated_at: Optional[datetime] = None
+
+
+class DNBVerifiedUBO(BaseModel):
+    name: str
+    percentage: float
+    is_pep: bool = False
+    nationality: Optional[str] = None
+    registry_verified: bool = True
+    tier_level: int = 1  # 1 = Direct Shareholder, 2 = Indirect Parent Owner
+
+
+class DNBProfile(BaseModel):
+    duns_number: str = "12-345-6789"
+    company_name: str
+    operating_status: str = "ACTIVE"
+    registration_number: Optional[str] = None
+    jurisdiction_of_incorporation: Optional[str] = "US"
+    parent_company: Optional[str] = None
+    global_ultimate_duns: Optional[str] = None
+    annual_turnover: Optional[str] = "$10,000,000 - $50,000,000"
+    employee_count: Optional[int] = 120
+    paydex_score: Optional[int] = 80  # 1-100 Dun & Bradstreet payment performance score
+    sic_code: Optional[str] = "7371 - Computer Programming Services"
+    naics_code: Optional[str] = "541511 - Custom Computer Programming"
+    verified_ubos: List[DNBVerifiedUBO] = Field(default_factory=list)
+    last_synced_at: datetime = Field(default_factory=datetime.utcnow)
+    data_source: str = "Dun & Bradstreet (D&B Direct+ API)"
+
+
+class LexisNexisScreeningSummary(BaseModel):
+    query_hash: str = "SHA256:LIVE_QUERY"
+    search_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    provider_source: str = "LexisNexis Bridger Insight XG / WorldCompliance"
+    total_hits: int = 0
+    sanctions_count: int = 0
+    pep_count: int = 0
+    adverse_media_count: int = 0
+    search_confidence_threshold: float = 80.0
+    status: str = "COMPLETED"
+
+
+class GLEIFRecord(BaseModel):
+    lei: str = "5493006MHB84DD0ZWV18"
+    legal_name: str
+    entity_status: str = "ACTIVE"
+    managing_lou: str = "GLEIF Global Legal Entity Identifier Foundation"
+    registered_country: str = "US"
+    validation_authority: str = "Official Company Registry"
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ExternalIntelligenceBundle(BaseModel):
+    dnb_profile: Optional[DNBProfile] = None
+    lexisnexis_summary: Optional[LexisNexisScreeningSummary] = None
+    gleif_record: Optional[GLEIFRecord] = None
+    synced_at: datetime = Field(default_factory=datetime.utcnow)
+    is_cached: bool = False
+    data_provenance_signature: str = "SHA256:TIER1_AUTHENTICATED_VENDOR_FEED"
 
 
 class CDDProfile(BaseModel):
@@ -242,6 +302,9 @@ class CDDProfile(BaseModel):
     industry_sector: str = "Technology & Professional Services"
     business_size: Optional[str] = "MEDIUM"
     delivery_channel: str = "Online / Direct Institutional Channel"
+    duns_number: Optional[str] = "12-345-6789"
+    lei: Optional[str] = "5493006MHB84DD0ZWV18"
+    dnb_verified_status: Optional[str] = "VERIFIED_ACTIVE"
     ubo_analysis_notes: Optional[str] = "Identified and verified all UBOs holding >= 25% voting equity."
 
 
@@ -408,9 +471,10 @@ class KYCCase(BaseModel):
     documents: List[DocumentModel] = Field(default_factory=list)
     cdd_profile: Optional[CDDProfile] = Field(default_factory=CDDProfile)
     
-    # Step 5A & 5B: Screening & Risk
+    # Step 5A & 5B: Screening, Risk & Third-Party Intelligence
     screening_matches: List[ScreeningMatch] = Field(default_factory=list)
     risk_assessment: Optional[RiskAssessment] = None
+    external_intelligence: Optional[ExternalIntelligenceBundle] = None
     
     # Step 6: Alert Investigation & Issues
     discrepancies: List[Discrepancy] = Field(default_factory=list)

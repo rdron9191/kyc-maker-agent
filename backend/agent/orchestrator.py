@@ -33,6 +33,7 @@ from backend.agent.verifier import CrossDocumentVerifier
 from backend.agent.screener import ComplianceScreener
 from backend.agent.risk_engine import RiskEngine
 from backend.agent.memo_generator import MemoGenerator
+from backend.integrations.manager import intelligence_manager
 
 
 class KYCMakerAgent:
@@ -83,7 +84,7 @@ class KYCMakerAgent:
             )
         )
 
-        # --- Stage 4: Customer Due Diligence (CDD) Analysis ---
+        # --- Stage 4: Customer Due Diligence (CDD) Analysis & Third-Party Enrichment ---
         case.current_stage = WorkflowStage.STAGE_4_CDD
         case.discrepancies = self.verifier.verify(
             primary_name=case.primary_name,
@@ -95,31 +96,50 @@ class KYCMakerAgent:
         if not case.cdd_profile:
             case.cdd_profile = CDDProfile()
 
-        # Extract UBO details if available in documents
-        for doc in case.documents:
-            if doc.extracted_data and doc.extracted_data.ubos:
-                ubo_names = [f"{u.get('name')} ({u.get('percentage')}%)" for u in doc.extracted_data.ubos]
-                case.cdd_profile.ubo_analysis_notes = f"Verified beneficial ownership structure: {', '.join(ubo_names)}."
+        # Enrich with Third-Party Intelligence (D&B Direct+, LexisNexis, GLEIF)
+        bundle, ln_matches = intelligence_manager.enrich_case(case)
+        case.external_intelligence = bundle
 
+        # Extract UBO details if available in documents or D&B Direct+
+        if bundle.dnb_profile and bundle.dnb_profile.verified_ubos:
+            ubo_names = [f"{u.name} ({u.percentage}%)" for u in bundle.dnb_profile.verified_ubos]
+            case.cdd_profile.ubo_analysis_notes = f"D&B Direct+ Verified beneficial ownership structure: {', '.join(ubo_names)}."
+        elif case.documents:
+            for doc in case.documents:
+                if doc.extracted_data and doc.extracted_data.ubos:
+                    ubo_names = [f"{u.get('name')} ({u.get('percentage')}%)" for u in doc.extracted_data.ubos]
+                    case.cdd_profile.ubo_analysis_notes = f"Verified beneficial ownership structure: {', '.join(ubo_names)}."
+
+        dnb_text = f"D-U-N-S: {bundle.dnb_profile.duns_number} (D&B Status: {bundle.dnb_profile.operating_status})" if bundle.dnb_profile else "Individual Profile"
         case.audit_trail.append(
             AuditEvent(
                 stage=WorkflowStage.STAGE_4_CDD,
                 actor="KYC_MAKER_AGENT",
-                action="CDD_ANALYSIS_COMPLETED",
-                details=f"Customer Due Diligence (CDD) analysis performed. Flagged {len(case.discrepancies)} discrepancy(ies).",
+                action="THIRD_PARTY_INTELLIGENCE_ENRICHED",
+                details=f"Synchronized third-party intelligence. {dnb_text}. LexisNexis Query Hash: {bundle.lexisnexis_summary.query_hash if bundle.lexisnexis_summary else 'N/A'}.",
             )
         )
 
         # --- Stage 5A & 5B: Parallel Screening & Risk Assessment ---
         case.current_stage = WorkflowStage.STAGE_5_SCREENING_RISK
         
-        # 5A: Screening & Research
-        case.screening_matches = self.screener.screen(
+        # 5A: Screening & Research (Internal + LexisNexis Bridger Insight)
+        internal_matches = self.screener.screen(
             primary_name=case.primary_name,
             entity_type=case.entity_type,
             country_of_operation=case.country_of_operation,
             documents=case.documents,
         )
+
+        # Merge LexisNexis matches seamlessly without duplication
+        merged_matches = list(internal_matches)
+        existing_keys = {(m.type, m.matched_entity) for m in internal_matches}
+        for hit in ln_matches:
+            if (hit.type, hit.matched_entity) not in existing_keys:
+                merged_matches.append(hit)
+                existing_keys.add((hit.type, hit.matched_entity))
+
+        case.screening_matches = merged_matches
 
         # 5B: Multi-Factor Risk Assessment (Customer, Product, Geo, Industry, Channel)
         case.risk_assessment = self.risk_engine.compute_risk(
@@ -137,7 +157,7 @@ class KYCMakerAgent:
                 stage=WorkflowStage.STAGE_5_SCREENING_RISK,
                 actor="KYC_MAKER_AGENT",
                 action="SCREENING_AND_RISK_EVALUATED",
-                details=f"Screening identified {len(case.screening_matches)} hit(s). Overall Customer Risk Rating: {case.risk_assessment.risk_tier.value} ({case.risk_assessment.overall_score}/100).",
+                details=f"Screening identified {len(case.screening_matches)} hit(s) via LexisNexis & Watchlists. Overall CRR: {case.risk_assessment.risk_tier.value} ({case.risk_assessment.overall_score}/100).",
             )
         )
 
