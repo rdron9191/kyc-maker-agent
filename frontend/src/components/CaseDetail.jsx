@@ -199,19 +199,19 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
   const getQueueBadge = (q) => {
     switch (q) {
       case 'MAKER_QUEUE':
-        return { label: 'Maker Queue', bg: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf' };
+        return { label: 'Maker Queue', bg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8' };
       case 'L1_CHECKER_QUEUE':
-        return { label: 'L1 Checker Queue (4-Eyes)', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
+        return { label: 'L1 Checker Queue (4-Eyes)', bg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8' };
       case 'L2_CHECKER_QUEUE':
-        return { label: 'L2 Senior Checker Queue (6-Eyes)', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
+        return { label: 'L2 Senior Checker Queue (6-Eyes)', bg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8' };
       case 'MLRO_QUEUE':
-        return { label: 'MLRO Escalation Queue', bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171' };
+        return { label: 'MLRO Escalation Queue', bg: 'rgba(239, 68, 68, 0.08)', color: '#f87171' };
       case 'PERIODIC_MONITORING_QUEUE':
-        return { label: 'Periodic Monitoring Queue', bg: 'rgba(14, 165, 233, 0.15)', color: '#38bdf8' };
+        return { label: 'Periodic Monitoring Queue', bg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8' };
       case 'COMPLETED_ARCHIVE':
-        return { label: 'Completed Archive', bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+        return { label: 'Completed Archive', bg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8' };
       default:
-        return { label: q || 'Active Queue', bg: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' };
+        return { label: q || 'Active Queue', bg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8' };
     }
   };
 
@@ -231,28 +231,15 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
           <button
             onClick={() => onBack(caseData.current_queue)}
             className="btn btn-secondary"
-            style={{
-              borderColor: queueBadge.color,
-              background: queueBadge.bg,
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontWeight: '600',
-              boxShadow: `0 0 12px ${queueBadge.color}30`,
-              transition: 'all 0.2s ease',
-            }}
-            title={`Tag directly back to ${queueBadge.label} queue`}
+            title={`Return to ${queueBadge.label}`}
           >
-            <ArrowLeft size={16} color={queueBadge.color} />
-            <span>Back to <strong style={{ color: queueBadge.color }}>{queueBadge.label}</strong></span>
+            <ArrowLeft size={15} /> Back to {queueBadge.label}
           </button>
-
           <button
             onClick={() => onBack('ALL')}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}
-            title="View All Cases Portfolio"
+            className="btn btn-secondary btn-sm"
+            style={{ color: 'var(--text-muted)' }}
+            title="Return to All Queues"
           >
             All Queues
           </button>
@@ -270,10 +257,9 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
             onClick={handleSyncExternalIntelligence}
             disabled={isSyncingExt}
             className="btn btn-secondary"
-            style={{ background: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.4)', color: '#60a5fa' }}
             title="Live query sync with Dun & Bradstreet Direct+ and LexisNexis Bridger Insight"
           >
-            <Database size={16} className={isSyncingExt ? 'animate-spin' : ''} />
+            <Database size={15} className={isSyncingExt ? 'animate-spin' : ''} />
             {isSyncingExt ? 'Syncing Feeds...' : 'Sync D&B / LexisNexis'}
           </button>
 
@@ -281,9 +267,8 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
             onClick={handleTriggerPeriodicReview}
             disabled={isPeriodicRunning}
             className="btn btn-secondary"
-            style={{ background: 'rgba(14, 165, 233, 0.15)', borderColor: 'rgba(14, 165, 233, 0.4)', color: '#38bdf8' }}
           >
-            <RefreshCw size={16} className={isPeriodicRunning ? 'animate-spin' : ''} />
+            <RefreshCw size={15} className={isPeriodicRunning ? 'animate-spin' : ''} />
             {isPeriodicRunning ? 'Refreshing...' : 'Trigger Periodic Re-KYC'}
           </button>
 
@@ -292,7 +277,7 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
             disabled={isAnalyzing}
             className="btn btn-primary"
           >
-            <Sparkles size={16} className={isAnalyzing ? 'animate-spin' : ''} />
+            <Sparkles size={15} className={isAnalyzing ? 'animate-spin' : ''} />
             {isAnalyzing ? 'Maker Analyzing...' : 'Re-Run Maker Agent'}
           </button>
 
@@ -483,26 +468,26 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
       {/* Case Header Card */}
       <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <div style={{ background: 'linear-gradient(135deg, #6366f1, #3b82f6)', width: '54px', height: '54px', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '1.25rem', boxShadow: '0 0 15px rgba(99, 102, 241, 0.4)' }}>
+          <div style={{ background: 'var(--bg-secondary)', width: '52px', height: '52px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f8fafc', fontWeight: '700', fontSize: '1.25rem' }}>
             {caseData.primary_name ? caseData.primary_name.charAt(0).toUpperCase() : 'K'}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em' }}>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
                 {caseData.primary_name}
               </h2>
               <span className="tag" style={{ color: 'var(--text-primary)' }}>{caseData.case_number}</span>
               <span className="tag">{caseData.entity_type}</span>
               {caseData.business_size && (
-                <span className="tag" style={{ background: 'rgba(20, 184, 166, 0.15)', borderColor: 'rgba(20, 184, 166, 0.35)', color: '#2dd4bf' }}>
+                <span className="tag" style={{ background: 'rgba(148, 163, 184, 0.08)', borderColor: 'rgba(148, 163, 184, 0.2)', color: '#cbd5e1' }}>
                   Scale: {caseData.business_size.replace('_', ' ')}
                 </span>
               )}
-              <span className="tag" style={{ background: 'rgba(99, 102, 241, 0.15)', borderColor: 'var(--border-accent)', color: 'var(--accent-secondary)' }}>
+              <span className="tag" style={{ background: 'rgba(148, 163, 184, 0.08)', borderColor: 'rgba(148, 163, 184, 0.2)', color: '#cbd5e1' }}>
                 Trigger: {caseData.trigger_type}
               </span>
             </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <span>Jurisdiction: <strong>{caseData.country_of_operation}</strong></span>
               <span>Priority: <strong>{caseData.priority}</strong></span>
               <span>Maker: <strong>{caseData.assigned_maker}</strong></span>
@@ -516,8 +501,8 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
               Current Queue Location
             </div>
-            <span className="tag" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', background: queueBadge.bg, color: queueBadge.color, borderColor: queueBadge.color, fontWeight: '700' }}>
-              📍 {queueBadge.label}
+            <span className="tag" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)', fontWeight: '600' }}>
+              Queue: {queueBadge.label}
             </span>
           </div>
 
@@ -525,7 +510,7 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
               Workflow Status
             </div>
-            <span className={`badge ${statusBadge}`} style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
+            <span className={`badge ${statusBadge}`} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
               {status.replace(/_/g, ' ')}
             </span>
           </div>

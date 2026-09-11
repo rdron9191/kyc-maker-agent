@@ -1,48 +1,48 @@
-/* KYC Maker — Modern Compliance Design System */
+/* KYC Maker — Professional Institutional Compliance Design System */
 
 :root {
-  --bg-primary: #0a0d14;
-  --bg-secondary: #101623;
-  --bg-tertiary: #172133;
-  --bg-card: rgba(19, 27, 43, 0.7);
-  --bg-card-hover: rgba(26, 38, 61, 0.85);
+  --bg-primary: #0b0f19;
+  --bg-secondary: #111724;
+  --bg-tertiary: #161d2d;
+  --bg-card: #121826;
+  --bg-card-hover: #172033;
   
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.14);
-  --border-accent: rgba(99, 102, 241, 0.4);
+  --border-subtle: #1e293b;
+  --border-medium: #2a374a;
+  --border-accent: #3b82f6;
   
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   
-  --accent-primary: #6366f1;
-  --accent-secondary: #818cf8;
-  --accent-glow: rgba(99, 102, 241, 0.25);
+  --accent-primary: #2563eb;
+  --accent-secondary: #60a5fa;
+  --accent-glow: rgba(37, 99, 235, 0.15);
   
   --color-success: #10b981;
-  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-success-bg: rgba(16, 185, 129, 0.08);
   --color-warning: #f59e0b;
-  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-warning-bg: rgba(245, 158, 11, 0.08);
   --color-danger: #ef4444;
-  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-danger-bg: rgba(239, 68, 68, 0.08);
   --color-critical: #e11d48;
-  --color-critical-bg: rgba(225, 29, 72, 0.16);
+  --color-critical-bg: rgba(225, 29, 72, 0.12);
   --color-info: #0ea5e9;
-  --color-info-bg: rgba(14, 165, 233, 0.12);
-  --color-purple: #a855f7;
-  --color-purple-bg: rgba(168, 85, 247, 0.12);
+  --color-info-bg: rgba(14, 165, 233, 0.08);
+  --color-purple: #8b5cf6;
+  --color-purple-bg: rgba(139, 92, 246, 0.08);
 
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-glow: 0 0 20px var(--accent-glow);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-glow: none;
   
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
   --radius-full: 9999px;
 }
 
@@ -59,16 +59,12 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.07) 0%, transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(14, 165, 233, 0.05) 0%, transparent 40%);
-  background-attachment: fixed;
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -93,9 +89,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 2rem;
-  background: rgba(16, 22, 35, 0.85);
-  backdrop-filter: blur(16px);
+  padding: 0.85rem 2rem;
+  background: #0d121e;
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
@@ -107,29 +102,29 @@ body {
   align-items: center;
   gap: 0.75rem;
   font-weight: 700;
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
 }
 
 .brand-icon {
-  background: linear-gradient(135deg, #6366f1, #0ea5e9);
-  padding: 0.5rem;
+  background: #172033;
+  border: 1px solid var(--border-medium);
+  padding: 0.45rem;
   border-radius: var(--radius-md);
-  color: white;
+  color: var(--accent-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
 }
 
 .brand-badge {
-  font-size: 0.7rem;
-  font-weight: 600;
-  background: var(--accent-glow);
-  color: var(--accent-secondary);
-  border: 1px solid var(--border-accent);
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-full);
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(37, 99, 235, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -145,27 +140,25 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   font-family: var(--font-sans);
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  padding: 0.6rem 1.1rem;
+  padding: 0.55rem 1rem;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   border: 1px solid transparent;
   outline: none;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: #2563eb;
   color: white;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  border: 1px solid #1d4ed8;
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, #4f46e5, #4338ca);
-  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.5);
-  transform: translateY(-1px);
+  background: #1d4ed8;
 }
 
 .btn-secondary {
@@ -180,37 +173,37 @@ body {
 
 .btn-danger {
   background: var(--color-danger-bg);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
 .btn-danger:hover {
-  background: var(--color-danger);
+  background: #dc2626;
   color: white;
 }
 
 .btn-success {
   background: var(--color-success-bg);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 .btn-success:hover {
-  background: var(--color-success);
+  background: #059669;
   color: white;
 }
 
 .btn-warning {
   background: var(--color-warning-bg);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 .btn-warning:hover {
-  background: var(--color-warning);
+  background: #d97706;
   color: white;
 }
 
 .btn-sm {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
 }
 
 /* Glassmorphism Cards */
@@ -279,59 +272,51 @@ body {
 }
 
 .badge-low {
-  background: var(--color-success-bg);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .badge-medium {
-  background: var(--color-warning-bg);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.08);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 .badge-high {
-  background: var(--color-danger-bg);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
 .badge-critical {
-  background: var(--color-critical-bg);
-  color: #fb7185;
-  border: 1px solid rgba(225, 29, 72, 0.5);
-  animation: pulse-border 2s infinite;
+  background: rgba(225, 29, 72, 0.12);
+  color: #fecdd3;
+  border: 1px solid rgba(225, 29, 72, 0.35);
 }
 
 .badge-pending {
-  background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: rgba(148, 163, 184, 0.08);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .badge-approved {
-  background: var(--color-success-bg);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .badge-rejected {
-  background: var(--color-danger-bg);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
 .badge-rfi {
-  background: var(--color-warning-bg);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-/* Pulse animation */
-@keyframes pulse-border {
-  0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); }
-  70% { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+  background: rgba(245, 158, 11, 0.08);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 @keyframes spin {
