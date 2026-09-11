@@ -8,6 +8,8 @@ export default function App() {
   const [cases, setCases] = useState([]);
   const [stats, setStats] = useState({});
   const [selectedCase, setSelectedCase] = useState(null);
+  const [selectedQueue, setSelectedQueue] = useState('ALL');
+  const [highlightedCaseId, setHighlightedCaseId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -47,13 +49,25 @@ export default function App() {
     setSelectedCase(caseItem);
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = (targetQueue = null) => {
+    if (targetQueue) {
+      setSelectedQueue(targetQueue);
+    } else if (selectedCase?.current_queue) {
+      setSelectedQueue(selectedCase.current_queue);
+    }
+    if (selectedCase?.id) {
+      setHighlightedCaseId(selectedCase.id);
+      setTimeout(() => setHighlightedCaseId(null), 4500);
+    }
     setSelectedCase(null);
     fetchData();
   };
 
   const handleCaseUpdated = (updatedCase) => {
     setSelectedCase(updatedCase);
+    if (updatedCase?.current_queue) {
+      setSelectedQueue(updatedCase.current_queue);
+    }
     setCases((prev) => prev.map((c) => (c.id === updatedCase.id ? updatedCase : c)));
     fetchData();
   };
@@ -128,6 +142,7 @@ export default function App() {
         {selectedCase ? (
           <CaseDetail
             caseData={selectedCase}
+            activeQueue={selectedQueue}
             onBack={handleBackToList}
             onCaseUpdated={handleCaseUpdated}
             onDeleteCase={handleDeleteCase}
@@ -136,6 +151,9 @@ export default function App() {
           <CaseList
             cases={cases}
             stats={stats}
+            selectedQueue={selectedQueue}
+            onSelectQueue={setSelectedQueue}
+            highlightedCaseId={highlightedCaseId}
             onSelectCase={handleSelectCase}
             onNewCase={() => setIsModalOpen(true)}
             onResetPresets={handleResetPresets}

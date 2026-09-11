@@ -27,13 +27,18 @@ import {
 export default function CaseList({
   cases = [],
   stats = {},
+  selectedQueue: propSelectedQueue,
+  onSelectQueue,
+  highlightedCaseId,
   onSelectCase,
   onNewCase,
   onResetPresets,
   isLoading
 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedQueue, setSelectedQueue] = useState('ALL'); // 'ALL' | 'MAKER_QUEUE' | 'L1_CHECKER_QUEUE' | 'L2_CHECKER_QUEUE' | 'MLRO_QUEUE' | 'PERIODIC_MONITORING_QUEUE' | 'COMPLETED_ARCHIVE'
+  const [internalQueue, setInternalQueue] = useState('ALL');
+  const selectedQueue = propSelectedQueue !== undefined ? propSelectedQueue : internalQueue;
+  const setSelectedQueue = onSelectQueue || setInternalQueue;
   const [filterSize, setFilterSize] = useState('ALL');
   const [showFlowGuide, setShowFlowGuide] = useState(false);
 
@@ -448,6 +453,7 @@ export default function CaseList({
             const isPeriodic = c.current_review_type === 'PERIODIC_REVIEW' || c.trigger_type === 'PERIODIC_RE_KYC';
             const sizeBadge = getBusinessSizeBadge(c.business_size);
             const queueInfo = getQueueInfo(c.current_queue);
+            const isHighlighted = highlightedCaseId === c.id;
 
             return (
               <div
@@ -463,6 +469,10 @@ export default function CaseList({
                   gap: '1.25rem',
                   flexWrap: 'wrap',
                   borderLeft: `4px solid ${queueInfo.color}`,
+                  border: isHighlighted ? `2px solid ${queueInfo.color}` : undefined,
+                  background: isHighlighted ? `${queueInfo.badgeBg}` : undefined,
+                  boxShadow: isHighlighted ? `0 0 22px ${queueInfo.color}40` : undefined,
+                  transition: 'all 0.3s ease',
                 }}
               >
                 {/* Left Identity Info */}
@@ -496,6 +506,11 @@ export default function CaseList({
                       <span className="tag" style={{ background: queueInfo.badgeBg, borderColor: queueInfo.color, color: queueInfo.color, fontWeight: '700' }}>
                         📍 {queueInfo.label}
                       </span>
+                      {isHighlighted && (
+                        <span className="tag" style={{ background: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981', color: '#34d399', fontWeight: '800', fontSize: '0.72rem' }}>
+                          ★ ACTIVE CASE IN QUEUE
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '0.75rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
                       <span>Jurisdiction: <strong>{c.country_of_operation}</strong></span>

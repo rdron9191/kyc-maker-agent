@@ -227,9 +227,36 @@ export default function CaseDetail({ caseData, onBack, onCaseUpdated, onDeleteCa
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Top Action Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <button onClick={onBack} className="btn btn-secondary">
-          <ArrowLeft size={16} /> Back to Case Queue
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => onBack(caseData.current_queue)}
+            className="btn btn-secondary"
+            style={{
+              borderColor: queueBadge.color,
+              background: queueBadge.bg,
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontWeight: '600',
+              boxShadow: `0 0 12px ${queueBadge.color}30`,
+              transition: 'all 0.2s ease',
+            }}
+            title={`Tag directly back to ${queueBadge.label} queue`}
+          >
+            <ArrowLeft size={16} color={queueBadge.color} />
+            <span>Back to <strong style={{ color: queueBadge.color }}>{queueBadge.label}</strong></span>
+          </button>
+
+          <button
+            onClick={() => onBack('ALL')}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}
+            title="View All Cases Portfolio"
+          >
+            All Queues
+          </button>
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           {exportFeedback && (
