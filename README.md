@@ -85,6 +85,10 @@ graph TD
 
 ## ⚡ Quick Start
 
+### Data persistence
+
+Cases are persisted in a local SQLite database at `data/kyc_maker.sqlite3` by default. The API keeps the existing repository interface, while every create, update, queue transition, and delete is written through to SQLite. Set `KYC_DB_PATH` to use a different database file (for example, a mounted production volume). The first startup seeds the database with the demonstration cases; `POST /api/cases/reset` replaces the stored data with those presets.
+
 ### 1. Start the Backend API (Port 8000)
 
 ```bash

@@ -37,6 +37,7 @@ import DocumentViewer from './DocumentViewer';
 import VerificationMatrix from './VerificationMatrix';
 import ScreeningHits from './ScreeningHits';
 import MakerMemo from './MakerMemo';
+import KYCOPanel from './KYCOPanel';
 
 export default function CaseDetail({
   caseData,
@@ -909,6 +910,7 @@ export default function CaseDetail({
 
       {/* Navigation Tabs */}
       <div className="tabs">
+        <button onClick={() => setActiveTab('KYCO')} className={`tab-btn ${activeTab === 'KYCO' ? 'active' : ''}`}>KYCO / PAM & Document Requests{(!caseData.kyco_contacts?.kyco_email || !caseData.kyco_contacts?.pam_email) ? ' — Assignment required' : ''}</button>
         <button
           onClick={() => setActiveTab('OVERVIEW')}
           className={`tab-btn ${activeTab === 'OVERVIEW' ? 'active' : ''}`}
@@ -954,6 +956,7 @@ export default function CaseDetail({
       </div>
 
       {/* Tab Content */}
+      {activeTab === 'KYCO' && <KYCOPanel key={caseData.id} caseData={caseData} onCaseUpdated={onCaseUpdated} />}
       {activeTab === 'OVERVIEW' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

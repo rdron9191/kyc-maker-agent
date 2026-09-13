@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isUnassigned } from '../utils/assignments';
 import {
   Search,
   Filter,
@@ -87,6 +88,8 @@ export default function CaseList({
 
   const getQueueInfo = (queueKey) => {
     switch (queueKey) {
+      case 'UNASSIGNED':
+        return { label: 'Unassigned Queue', badgeBg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8', icon: UserPlus };
       case 'MAKER_QUEUE':
         return { label: 'Maker Queue', badgeBg: 'rgba(148, 163, 184, 0.08)', color: '#94a3b8', icon: Layers };
       case 'L1_CHECKER_QUEUE':
@@ -109,11 +112,11 @@ export default function CaseList({
       case 'MAKER_QUEUE':
         return { role: 'Maker', name: caseItem.assigned_maker || 'Unassigned (Maker Pool)' };
       case 'L1_CHECKER_QUEUE':
-        return { role: 'L1 Checker', name: caseItem.assigned_checker_l1 || caseItem.assigned_checker || 'Unassigned (L1 Pool)' };
+        return { role: 'L1 Checker', name: caseItem.assigned_checker_l1 || 'Unassigned (L1 Pool)' };
       case 'L2_CHECKER_QUEUE':
         return { role: 'L2 Senior', name: caseItem.assigned_checker_l2 || 'Unassigned (L2 Pool)' };
       case 'MLRO_QUEUE':
-        return { role: 'MLRO', name: caseItem.assigned_mlro || 'Arthur Pendelton (Global MLRO)' };
+        return { role: 'MLRO', name: caseItem.assigned_mlro || 'Unassigned (MLRO Pool)' };
       case 'PERIODIC_MONITORING_QUEUE':
         return { role: 'Surveillance', name: 'Auto-Surveillance Engine' };
       case 'COMPLETED_ARCHIVE':
@@ -135,10 +138,14 @@ export default function CaseList({
       alert(`No cases available in ${getQueueInfo(selectedQueue).label}.`);
       return;
     }
-    const candidate = filteredCases.find((c) => !getIsClaimedByMe(c)) || filteredCases[0];
+    const candidate = filteredCases.find(isUnassigned);
+    if (!candidate) {
+      alert('No unassigned cases available in this queue.');
+      return;
+    }
     if (onClaimCase && candidate) {
       const updated = await onClaimCase(candidate);
-      onSelectCase(updated || candidate);
+      if (updated) onSelectCase(updated);
     } else if (candidate) {
       onSelectCase(candidate);
     }
@@ -156,6 +163,7 @@ export default function CaseList({
     if (filterSize !== 'ALL' && c.business_size !== filterSize) return false;
 
     // Strict queue filtering: if a specific queue is selected, only show cases in that queue
+    if (selectedQueue === 'UNASSIGNED') return isUnassigned(c);
     if (selectedQueue !== 'ALL') {
       return c.current_queue === selectedQueue;
     }
@@ -263,6 +271,16 @@ export default function CaseList({
         }}
       >
         {/* All Cases */}
+        <button
+          className="glass-panel"
+          onClick={() => setSelectedQueue('UNASSIGNED')}
+          aria-pressed={selectedQueue === 'UNASSIGNED'}
+          style={{ padding: '1rem', textAlign: 'left', color: 'var(--text-primary)', cursor: 'pointer', borderColor: selectedQueue === 'UNASSIGNED' ? 'var(--accent-primary)' : 'var(--border-subtle)' }}
+        >
+          <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>UNASSIGNED QUEUE</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700 }}>{cases.filter(isUnassigned).length}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Awaiting an owner</div>
+        </button>
         <div
           onClick={() => setSelectedQueue('ALL')}
           className="glass-panel"

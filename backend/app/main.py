@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 import copy
 from backend.app.models import (
+    KYCOContacts,
     KYCCase,
     CaseCreateRequest,
     CaseDecisionRequest,
@@ -57,6 +58,22 @@ agent = KYCMakerAgent()
 @app.get("/api/health")
 def health_check():
     return {"status": "healthy", "service": "kyc-maker-agent", "timestamp": datetime.utcnow().isoformat()}
+
+
+@app.put("/api/cases/{case_id}/kyco-contacts", response_model=KYCCase)
+def save_kyco_contacts(case_id: str, payload: KYCOContacts):
+    case = db.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    import re
+    for role in ("kyco_email", "pam_email"):
+        address = getattr(payload, role).strip()
+        if not re.fullmatch(r"[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+", address):
+            raise HTTPException(status_code=422, detail="Both KYCO and PAM require a valid email assignment.")
+        setattr(payload, role, address)
+    case.kyco_contacts = payload
+    case.audit_trail.append(AuditEvent(actor="COMPLIANCE_OFFICER", action="KYCO_CONTACTS_UPDATED", details="Updated KYCO contacts and document request draft."))
+    return db.save_case(case)
 
 
 @app.get("/api/stats")

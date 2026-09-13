@@ -17,29 +17,34 @@ export default function App() {
   const [highlightedCaseId, setHighlightedCaseId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Fetch Cases and Stats
   const fetchData = async () => {
+    setLoadError('');
     try {
       const [casesRes, statsRes] = await Promise.all([
         fetch('/api/cases'),
         fetch('/api/stats'),
       ]);
-      if (casesRes.ok && statsRes.ok) {
-        const casesData = await casesRes.json();
-        const statsData = await statsRes.json();
-        setCases(casesData);
-        setStats(statsData);
-
-        // If a case is selected, keep its reference updated without reviving a closed case
-        setSelectedCase((prevSelected) => {
-          if (!prevSelected) return null;
-          const updatedSelected = casesData.find((c) => c.id === prevSelected.id);
-          return updatedSelected || null;
-        });
+      if (!casesRes.ok || !statsRes.ok) {
+        throw new Error(`API returned ${casesRes.status}/${statsRes.status}`);
       }
+
+      const casesData = await casesRes.json();
+      const statsData = await statsRes.json();
+      setCases(casesData);
+      setStats(statsData);
+
+      // If a case is selected, keep its reference updated without reviving a closed case
+      setSelectedCase((prevSelected) => {
+        if (!prevSelected) return null;
+        const updatedSelected = casesData.find((c) => c.id === prevSelected.id);
+        return updatedSelected || null;
+      });
     } catch (err) {
       console.error('Failed to fetch cases:', err);
+      setLoadError('Unable to reach the compliance API. Check that the backend is running, then retry.');
     } finally {
       setIsLoading(false);
     }
@@ -177,6 +182,14 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="main-content">
+        {loadError && (
+          <div className="error-banner" role="alert">
+            <span>{loadError}</span>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setIsLoading(true); fetchData(); }}>
+              Retry
+            </button>
+          </div>
+        )}
         {selectedCase ? (
           <CaseDetail
             caseData={selectedCase}

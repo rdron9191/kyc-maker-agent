@@ -467,7 +467,17 @@ class CaseReleaseRequest(BaseModel):
     reason: Optional[str] = "Released back to queue pool"
 
 
+class KYCOContacts(BaseModel):
+    kyco_email: str = "nina.shah@example.com"
+    pam_email: str = "oliver.reed@example.com"
+    rm_email: str = ""
+    premium_client: bool = False
+    executive_email: str = ""
+    requested_documents: str = ""
+
+
 class KYCCase(BaseModel):
+    kyco_contacts: KYCOContacts = Field(default_factory=KYCOContacts)
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     case_number: str
     entity_type: EntityType

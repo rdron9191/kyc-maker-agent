@@ -1,6 +1,9 @@
 """Case repository and persistence layer for KYC Maker AI Agent."""
 
 import copy
+import json
+import os
+import sqlite3
 import uuid
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
@@ -22,16 +25,73 @@ from backend.agent.orchestrator import KYCMakerAgent
 
 
 class CaseDatabase:
-    """In-memory case repository with preset initialization and persistence."""
+    """SQLite-backed case repository with an in-memory read cache.
+
+    Cases are stored as JSON snapshots so the repository can persist the full
+    Pydantic dossier (including nested audit and review records) without
+    coupling the API models to a large relational schema.
+    """
 
     def __init__(self):
         self._cases: Dict[str, KYCCase] = {}
+        default_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "kyc_maker.sqlite3"))
+        self.database_path = os.getenv("KYC_DB_PATH", default_path)
+        os.makedirs(os.path.dirname(self.database_path), exist_ok=True)
+        self._connection = sqlite3.connect(self.database_path, check_same_thread=False)
+        self._connection.row_factory = sqlite3.Row
+        self._create_schema()
         self.agent = KYCMakerAgent()
-        self.initialize_presets()
+        if not self._load_cases():
+            self.initialize_presets()
+
+    def _create_schema(self):
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cases (
+                id TEXT PRIMARY KEY,
+                case_number TEXT NOT NULL,
+                current_queue TEXT NOT NULL,
+                status TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                payload TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute("CREATE INDEX IF NOT EXISTS idx_cases_queue ON cases(current_queue)")
+        self._connection.execute("CREATE INDEX IF NOT EXISTS idx_cases_updated_at ON cases(updated_at)")
+        self._connection.commit()
+
+    def _load_cases(self) -> bool:
+        rows = self._connection.execute("SELECT payload FROM cases ORDER BY updated_at DESC").fetchall()
+        self._cases = {case.id: case for row in rows if (case := KYCCase.model_validate(json.loads(row["payload"]))) }
+        return bool(self._cases)
+
+    def _persist_case(self, case: KYCCase):
+        self._connection.execute(
+            """
+            INSERT INTO cases (id, case_number, current_queue, status, updated_at, payload)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                case_number=excluded.case_number,
+                current_queue=excluded.current_queue,
+                status=excluded.status,
+                updated_at=excluded.updated_at,
+                payload=excluded.payload
+            """,
+            (
+                case.id,
+                case.case_number,
+                case.current_queue.value,
+                case.status.value,
+                case.updated_at.isoformat(),
+                json.dumps(case.model_dump(mode="json")),
+            ),
+        )
 
     def initialize_presets(self):
         """Populate the database with realistic demo cases pre-analyzed by the Maker Agent."""
         self._cases.clear()
+        self._connection.execute("DELETE FROM cases")
         
         for preset in PRESET_DEMO_CASES:
             case_id = str(uuid.uuid4())
@@ -165,6 +225,9 @@ class CaseDatabase:
                 )
 
             self._cases[case.id] = case
+            self._persist_case(case)
+
+        self._connection.commit()
 
     def list_cases(self) -> List[KYCCase]:
         # Return sorted by updated_at descending
@@ -176,11 +239,15 @@ class CaseDatabase:
     def save_case(self, case: KYCCase) -> KYCCase:
         case.updated_at = datetime.utcnow()
         self._cases[case.id] = case
+        self._persist_case(case)
+        self._connection.commit()
         return case
 
     def delete_case(self, case_id: str) -> bool:
         if case_id in self._cases:
             del self._cases[case_id]
+            self._connection.execute("DELETE FROM cases WHERE id = ?", (case_id,))
+            self._connection.commit()
             return True
         return False
 
